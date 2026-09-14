@@ -37,6 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# user-uploaded product images/documents (local-disk storage — see
+# src/server/uploads/storage.ts; never committed, not demo/seed data)
+/public/uploads
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

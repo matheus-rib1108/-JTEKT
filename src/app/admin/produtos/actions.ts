@@ -6,12 +6,21 @@ import { headers } from "next/headers";
 import { prisma } from "@/server/db/client";
 import { requirePermission } from "@/server/auth/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
-import { productSchema, movementSchema, inventorySettingsSchema } from "@/lib/validation/catalog";
+import {
+  productSchema,
+  movementSchema,
+  inventorySettingsSchema,
+  addProductImageSchema,
+  removeProductImageSchema,
+  addProductDocumentSchema,
+  removeProductDocumentSchema,
+} from "@/lib/validation/catalog";
 import { allocationSchema } from "@/lib/validation/warehouse";
 import { writeAuditLog } from "@/server/audit/log";
 import { getRequestIp } from "@/server/http/ip";
 import { registerMovement, updateCommercialAvailability, InventoryError } from "@/server/inventory/engine";
 import { allocateProduct, WarehouseError } from "@/server/warehouse/engine";
+import { saveProductUpload, deleteLocalUpload, UploadError } from "@/server/uploads/storage";
 import type { Prisma } from "@prisma/client";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -28,6 +37,7 @@ function readProductFormData(formData: FormData) {
     categoryId: formData.get("categoryId"),
     manufacturer: formData.get("manufacturer"),
     model: formData.get("model"),
+    application: formData.get("application"),
     unit: formData.get("unit"),
     minCommercialQuantity: formData.get("minCommercialQuantity"),
     status: formData.get("status"),
@@ -60,6 +70,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
       categoryId: data.categoryId || null,
       manufacturer: data.manufacturer || null,
       model: data.model || null,
+      application: data.application || null,
       unit: data.unit,
       minCommercialQuantity: data.minCommercialQuantity,
       status: data.status,
@@ -114,6 +125,7 @@ export async function updateProduct(productId: string, formData: FormData): Prom
       categoryId: data.categoryId || null,
       manufacturer: data.manufacturer || null,
       model: data.model || null,
+      application: data.application || null,
       unit: data.unit,
       minCommercialQuantity: data.minCommercialQuantity,
       status: data.status,
@@ -264,5 +276,167 @@ export async function allocateProductToLocation(formData: FormData): Promise<Act
   revalidatePath(`/admin/produtos/${data.productId}`);
   revalidatePath("/admin/armazem");
   revalidatePath("/admin/estoque");
+  return { ok: true };
+}
+
+export async function addProductImage(formData: FormData): Promise<ActionResult> {
+  const auth = await requirePermission(PERMISSIONS.PRODUCTS_MANAGE);
+  if (!auth.user) return { ok: false, error: "Não autorizado." };
+
+  const parsed = addProductImageSchema.safeParse({
+    productId: formData.get("productId"),
+    url: formData.get("url"),
+    altText: formData.get("altText"),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const data = parsed.data;
+
+  const product = await prisma.product.findFirst({ where: { id: data.productId, tenantId: auth.user.tenantId } });
+  if (!product) return { ok: false, error: "Produto não encontrado." };
+
+  const file = formData.get("file");
+  let url: string;
+  try {
+    if (file instanceof File && file.size > 0) {
+      const saved = await saveProductUpload(file, "image", auth.user.tenantId, data.productId);
+      url = saved.url;
+    } else if (data.url) {
+      url = data.url;
+    } else {
+      return { ok: false, error: "Informe uma URL de imagem ou envie um arquivo." };
+    }
+  } catch (error) {
+    if (error instanceof UploadError) return { ok: false, error: error.message };
+    throw error;
+  }
+
+  const image = await prisma.productImage.create({
+    data: { productId: data.productId, url, altText: data.altText || null },
+  });
+
+  await writeAuditLog({
+    tenantId: auth.user.tenantId,
+    actorUserId: auth.user.id,
+    action: "product.image.add",
+    entityType: "Product",
+    entityId: data.productId,
+    ipAddress: await ipFromHeaders(),
+    afterData: { imageId: image.id, url },
+  });
+
+  revalidatePath(`/admin/produtos/${data.productId}`);
+  revalidatePath("/admin/produtos");
+  revalidatePath("/portal/produtos");
+  return { ok: true };
+}
+
+export async function removeProductImage(formData: FormData): Promise<ActionResult> {
+  const auth = await requirePermission(PERMISSIONS.PRODUCTS_MANAGE);
+  if (!auth.user) return { ok: false, error: "Não autorizado." };
+
+  const parsed = removeProductImageSchema.safeParse({ imageId: formData.get("imageId") });
+  if (!parsed.success) return { ok: false, error: "Dados inválidos." };
+
+  const image = await prisma.productImage.findFirst({
+    where: { id: parsed.data.imageId, product: { tenantId: auth.user.tenantId } },
+  });
+  if (!image) return { ok: false, error: "Imagem não encontrada." };
+
+  await prisma.productImage.delete({ where: { id: image.id } });
+  await deleteLocalUpload(image.url);
+
+  await writeAuditLog({
+    tenantId: auth.user.tenantId,
+    actorUserId: auth.user.id,
+    action: "product.image.remove",
+    entityType: "Product",
+    entityId: image.productId,
+    ipAddress: await ipFromHeaders(),
+    beforeData: { imageId: image.id, url: image.url },
+  });
+
+  revalidatePath(`/admin/produtos/${image.productId}`);
+  revalidatePath("/admin/produtos");
+  revalidatePath("/portal/produtos");
+  return { ok: true };
+}
+
+export async function addProductDocument(formData: FormData): Promise<ActionResult> {
+  const auth = await requirePermission(PERMISSIONS.PRODUCTS_MANAGE);
+  if (!auth.user) return { ok: false, error: "Não autorizado." };
+
+  const parsed = addProductDocumentSchema.safeParse({
+    productId: formData.get("productId"),
+    label: formData.get("label"),
+    url: formData.get("url"),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const data = parsed.data;
+
+  const product = await prisma.product.findFirst({ where: { id: data.productId, tenantId: auth.user.tenantId } });
+  if (!product) return { ok: false, error: "Produto não encontrado." };
+
+  const file = formData.get("file");
+  let url: string;
+  try {
+    if (file instanceof File && file.size > 0) {
+      const saved = await saveProductUpload(file, "document", auth.user.tenantId, data.productId);
+      url = saved.url;
+    } else if (data.url) {
+      url = data.url;
+    } else {
+      return { ok: false, error: "Informe uma URL de documento ou envie um arquivo PDF." };
+    }
+  } catch (error) {
+    if (error instanceof UploadError) return { ok: false, error: error.message };
+    throw error;
+  }
+
+  const document = await prisma.productDocument.create({
+    data: { productId: data.productId, label: data.label, url },
+  });
+
+  await writeAuditLog({
+    tenantId: auth.user.tenantId,
+    actorUserId: auth.user.id,
+    action: "product.document.add",
+    entityType: "Product",
+    entityId: data.productId,
+    ipAddress: await ipFromHeaders(),
+    afterData: { documentId: document.id, label: document.label, url },
+  });
+
+  revalidatePath(`/admin/produtos/${data.productId}`);
+  revalidatePath("/portal/produtos");
+  return { ok: true };
+}
+
+export async function removeProductDocument(formData: FormData): Promise<ActionResult> {
+  const auth = await requirePermission(PERMISSIONS.PRODUCTS_MANAGE);
+  if (!auth.user) return { ok: false, error: "Não autorizado." };
+
+  const parsed = removeProductDocumentSchema.safeParse({ documentId: formData.get("documentId") });
+  if (!parsed.success) return { ok: false, error: "Dados inválidos." };
+
+  const document = await prisma.productDocument.findFirst({
+    where: { id: parsed.data.documentId, product: { tenantId: auth.user.tenantId } },
+  });
+  if (!document) return { ok: false, error: "Documento não encontrado." };
+
+  await prisma.productDocument.delete({ where: { id: document.id } });
+  await deleteLocalUpload(document.url);
+
+  await writeAuditLog({
+    tenantId: auth.user.tenantId,
+    actorUserId: auth.user.id,
+    action: "product.document.remove",
+    entityType: "Product",
+    entityId: document.productId,
+    ipAddress: await ipFromHeaders(),
+    beforeData: { documentId: document.id, label: document.label, url: document.url },
+  });
+
+  revalidatePath(`/admin/produtos/${document.productId}`);
+  revalidatePath("/portal/produtos");
   return { ok: true };
 }

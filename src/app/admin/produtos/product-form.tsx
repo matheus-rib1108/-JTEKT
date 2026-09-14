@@ -16,6 +16,7 @@ export interface ProductFormValues {
   categoryId: string;
   manufacturer: string;
   model: string;
+  application: string;
   unit: string;
   minCommercialQuantity: number;
   status: "DRAFT" | "ACTIVE" | "DISCONTINUED";
@@ -30,6 +31,7 @@ const EMPTY_VALUES: ProductFormValues = {
   categoryId: "",
   manufacturer: "",
   model: "",
+  application: "",
   unit: "UN",
   minCommercialQuantity: 1,
   status: "DRAFT",
@@ -164,6 +166,16 @@ export function ProductForm({
         <div>
           <Label htmlFor="model">Modelo</Label>
           <Input id="model" name="model" value={values.model} onChange={(e) => update("model", e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="application">Aplicação</Label>
+          <Input
+            id="application"
+            name="application"
+            placeholder="Ex.: Automotiva/Industrial"
+            value={values.application}
+            onChange={(e) => update("application", e.target.value)}
+          />
         </div>
         <div>
           <Label htmlFor="unit">Unidade</Label>

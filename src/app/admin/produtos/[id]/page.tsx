@@ -11,6 +11,8 @@ import { updateProduct } from "../actions";
 import { MovementForm } from "./movement-form";
 import { AvailabilityForm } from "./availability-form";
 import { AllocationForm } from "./allocation-form";
+import { ImagesPanel } from "./images-panel";
+import { DocumentsPanel } from "./documents-panel";
 
 const STATUS_LABEL = { DRAFT: "Rascunho", ACTIVE: "Ativo", DISCONTINUED: "Descontinuado" } as const;
 const MOVEMENT_LABEL: Record<string, string> = {
@@ -48,6 +50,8 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
           orderBy: { createdAt: "asc" },
         },
         classification: true,
+        images: { orderBy: { position: "asc" } },
+        documents: { orderBy: { createdAt: "asc" } },
       },
     }),
     prisma.category.findMany({ where: { tenantId: auth.user.tenantId }, orderBy: { name: "asc" } }),
@@ -109,6 +113,7 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
                   categoryId: product.categoryId ?? "",
                   manufacturer: product.manufacturer ?? "",
                   model: product.model ?? "",
+                  application: product.application ?? "",
                   unit: product.unit,
                   minCommercialQuantity: product.minCommercialQuantity,
                   status: product.status,
@@ -121,6 +126,7 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
                 <DetailRow label="Categoria" value={product.category?.name ?? "—"} />
                 <DetailRow label="Fabricante" value={product.manufacturer ?? "—"} />
                 <DetailRow label="Modelo" value={product.model ?? "—"} />
+                <DetailRow label="Aplicação" value={product.application ?? "—"} />
                 <DetailRow label="Unidade" value={product.unit} />
                 {specifications.map((spec) => (
                   <DetailRow key={spec.key} label={spec.key} value={spec.value} />
@@ -249,6 +255,50 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
           ) : null}
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Imagens</CardTitle>
+            <CardDescription>
+              Priorize fotos reais da peça (§61) — nunca imagens que possam ser confundidas com o
+              produto real sem serem.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {canManageProduct ? (
+              <ImagesPanel productId={product.id} images={product.images} />
+            ) : product.images.length === 0 ? (
+              <p className="text-[13px] text-text-muted">Nenhuma imagem cadastrada.</p>
+            ) : (
+              <p className="text-[13px] text-text-muted">{product.images.length} imagem(ns) cadastrada(s).</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Documentos técnicos</CardTitle>
+            <CardDescription>Ficha técnica, desenho técnico e outros anexos (§10).</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {canManageProduct ? (
+              <DocumentsPanel productId={product.id} documents={product.documents} />
+            ) : product.documents.length === 0 ? (
+              <p className="text-[13px] text-text-muted">Nenhum documento cadastrado.</p>
+            ) : (
+              <ul className="space-y-1 text-[13px]">
+                {product.documents.map((doc) => (
+                  <li key={doc.id}>
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-brand-700 hover:underline">
+                      {doc.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

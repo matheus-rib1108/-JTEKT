@@ -328,6 +328,10 @@ model Product {
 
   manufacturer String?
   model        String?
+  /// e.g. "Automotiva/Industrial" (§10/§60) — a distinct catalog/filter
+  /// dimension from category, closer to "what kind of machine this goes
+  /// into" than "what kind of part this is".
+  application  String?
   unit         String  @default("UN") // UN, CX, KG, M, L...
 
   /// Freeform technical specs (§60): array of { key, value }. Deliberately

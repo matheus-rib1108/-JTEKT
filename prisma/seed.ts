@@ -117,6 +117,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
     categorySlug: string;
     manufacturer: string;
     model: string;
+    application: string;
     specifications: { key: string; value: string }[];
     minCommercialQuantity: number;
     unitCost: number;
@@ -138,6 +139,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       categorySlug: "rolamentos",
       manufacturer: "NSK",
       model: "6205-2RS",
+      application: "Automotiva/Industrial",
       specifications: [
         { key: "Diâmetro interno", value: "25 mm" },
         { key: "Diâmetro externo", value: "52 mm" },
@@ -162,6 +164,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       categorySlug: "rolamentos",
       manufacturer: "NSK",
       model: "6304-2RS",
+      application: "Automotiva/Industrial",
       specifications: [
         { key: "Diâmetro interno", value: "20 mm" },
         { key: "Diâmetro externo", value: "52 mm" },
@@ -185,6 +188,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       categorySlug: "rolamentos",
       manufacturer: "Timken",
       model: "30206",
+      application: "Máquinas pesadas/Industrial",
       specifications: [
         { key: "Diâmetro interno", value: "30 mm" },
         { key: "Diâmetro externo", value: "62 mm" },
@@ -208,6 +212,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       categorySlug: "rolamentos",
       manufacturer: "NSK",
       model: "6006",
+      application: "Automotiva/Industrial",
       specifications: [
         { key: "Diâmetro interno", value: "30 mm" },
         { key: "Diâmetro externo", value: "55 mm" },
@@ -231,6 +236,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       categorySlug: "correias-transmissao",
       manufacturer: "Gates",
       model: "A-1200",
+      application: "Transmissão de potência industrial",
       specifications: [
         { key: "Perfil", value: "A" },
         { key: "Comprimento", value: "1200 mm" },
@@ -253,6 +259,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       categorySlug: "correias-transmissao",
       manufacturer: "Gates",
       model: "B-1500",
+      application: "Transmissão de potência industrial",
       specifications: [
         { key: "Perfil", value: "B" },
         { key: "Comprimento", value: "1500 mm" },
@@ -275,6 +282,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       categorySlug: "vedacao-retentores",
       manufacturer: "NAK",
       model: "25X40X7",
+      application: "Vedação de eixos rotativos",
       specifications: [
         { key: "Diâmetro do eixo", value: "25 mm" },
         { key: "Diâmetro externo", value: "40 mm" },
@@ -298,6 +306,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       categorySlug: "vedacao-retentores",
       manufacturer: "NAK",
       model: "40X60X10",
+      application: "Vedação de eixos rotativos",
       specifications: [
         { key: "Diâmetro do eixo", value: "40 mm" },
         { key: "Diâmetro externo", value: "60 mm" },
@@ -331,6 +340,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         categoryId: categories[def.categorySlug],
         manufacturer: def.manufacturer,
         model: def.model,
+        application: def.application,
         unit: "UN",
         minCommercialQuantity: def.minCommercialQuantity,
         unitCost: def.unitCost,

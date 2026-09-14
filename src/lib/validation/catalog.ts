@@ -31,6 +31,7 @@ export const productSchema = z.object({
   categoryId: optionalText(200),
   manufacturer: optionalText(150),
   model: optionalText(150),
+  application: optionalText(150),
   unit: z.string().trim().min(1).max(10).default("UN"),
   minCommercialQuantity: z.coerce.number().int().min(1).max(1_000_000),
   status: z.enum(productStatusValues),
@@ -99,3 +100,30 @@ export const inventorySettingsSchema = z.object({
   safetyStock: z.coerce.number().int().min(0).optional(),
 });
 export type InventorySettingsInput = z.infer<typeof inventorySettingsSchema>;
+
+const optionalUrl = z.preprocess(
+  (v) => (v === "" || v === null || v === undefined ? undefined : v),
+  z.string().trim().url("Informe uma URL válida.").optional(),
+);
+
+export const addProductImageSchema = z.object({
+  productId: z.string().min(1),
+  url: optionalUrl,
+  altText: optionalText(150),
+});
+export type AddProductImageInput = z.infer<typeof addProductImageSchema>;
+
+export const removeProductImageSchema = z.object({
+  imageId: z.string().min(1),
+});
+
+export const addProductDocumentSchema = z.object({
+  productId: z.string().min(1),
+  label: z.string().trim().min(2).max(150),
+  url: optionalUrl,
+});
+export type AddProductDocumentInput = z.infer<typeof addProductDocumentSchema>;
+
+export const removeProductDocumentSchema = z.object({
+  documentId: z.string().min(1),
+});

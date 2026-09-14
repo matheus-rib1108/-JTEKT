@@ -35,9 +35,23 @@ função.
       resolvida automaticamente a cada recálculo. Nunca fabrica uma classe
       quando falta dado real (custo não cadastrado → ABC "N/D"; menos de 3
       períodos de consumo → XYZ "N/D").
-- [ ] **Fase 5 — Catálogo B2B (completo).** Imagens, documentos técnicos,
-      filtros avançados por faixa de preço/aplicação/fabricante — a
-      navegação básica já existe desde a Fase 2.
+- [x] **Fase 5 — Catálogo B2B (completo).** `ProductImage`, `ProductDocument`,
+      novo campo `application` (§10/§60 "Aplicação: Automotiva/Industrial").
+      Upload local validado por MIME real (nunca pela extensão informada
+      pelo usuário) com limite de tamanho por tipo, ou colagem de URL
+      externa — sem integração de object storage configurada, sinalizado
+      em código em vez de simulado (§49); troca para S3/Blob é pré-
+      requisito de produção multi-instância. Painéis de imagens/documentos
+      na página do produto (admin), filtros por fabricante/aplicação no
+      catálogo do admin e do portal do cliente, miniaturas na listagem, e
+      nova página de detalhe técnico do produto no portal (galeria,
+      especificações, documentos para download) — sem nenhum campo de
+      quantidade interna exposto ao cliente (§9). Dois bugs achados só em
+      teste real de navegador: CSP `img-src` bloqueava silenciosamente
+      imagens externas coladas pelo admin (faltava `https:`), e o
+      armazenamento em disco disparava um warning de build do Turbopack por
+      montar o caminho via split/join de string em vez de segmentos
+      literais.
 - [ ] **Fase 6 — Ofertas + preços.** Motor de preços com margem/preço
       mínimo, descontos por quantidade, ofertas de estoque excedente.
 - [ ] **Fase 7 — Carrinho + pedidos.** `Order`, `OrderItem`, reserva de

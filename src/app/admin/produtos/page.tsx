@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/server/db/client";
 import { requirePermission } from "@/server/auth/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -16,7 +17,7 @@ const STATUS_TONE = { DRAFT: "neutral", ACTIVE: "success", DISCONTINUED: "danger
 export default async function ProdutosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; categoryId?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; categoryId?: string; status?: string; manufacturer?: string; application?: string }>;
 }) {
   const auth = await requirePermission(PERMISSIONS.PRODUCTS_VIEW);
   if (!auth.user) return <Forbidden />;
@@ -27,6 +28,8 @@ export default async function ProdutosPage({
   const where: Prisma.ProductWhereInput = { tenantId: auth.user.tenantId };
   if (params.categoryId) where.categoryId = params.categoryId;
   if (params.status) where.status = params.status as ProductStatus;
+  if (params.manufacturer) where.manufacturer = params.manufacturer;
+  if (params.application) where.application = params.application;
   if (params.q) {
     where.OR = [
       { name: { contains: params.q, mode: "insensitive" } },
@@ -35,14 +38,26 @@ export default async function ProdutosPage({
     ];
   }
 
-  const [products, categories] = await Promise.all([
+  const [products, categories, manufacturers, applications] = await Promise.all([
     prisma.product.findMany({
       where,
-      include: { category: true, inventory: true },
+      include: { category: true, inventory: true, images: { take: 1, orderBy: { position: "asc" } } },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
     prisma.category.findMany({ where: { tenantId: auth.user.tenantId }, orderBy: { name: "asc" } }),
+    prisma.product.findMany({
+      where: { tenantId: auth.user.tenantId, manufacturer: { not: null } },
+      select: { manufacturer: true },
+      distinct: ["manufacturer"],
+      orderBy: { manufacturer: "asc" },
+    }),
+    prisma.product.findMany({
+      where: { tenantId: auth.user.tenantId, application: { not: null } },
+      select: { application: true },
+      distinct: ["application"],
+      orderBy: { application: "asc" },
+    }),
   ]);
 
   return (
@@ -92,6 +107,30 @@ export default async function ProdutosPage({
           <option value="ACTIVE">Ativo</option>
           <option value="DISCONTINUED">Descontinuado</option>
         </select>
+        <select
+          name="manufacturer"
+          defaultValue={params.manufacturer ?? ""}
+          className="h-9 rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-[13px]"
+        >
+          <option value="">Todos os fabricantes</option>
+          {manufacturers.map((p) => (
+            <option key={p.manufacturer} value={p.manufacturer ?? ""}>
+              {p.manufacturer}
+            </option>
+          ))}
+        </select>
+        <select
+          name="application"
+          defaultValue={params.application ?? ""}
+          className="h-9 rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-[13px]"
+        >
+          <option value="">Todas as aplicações</option>
+          {applications.map((p) => (
+            <option key={p.application} value={p.application ?? ""}>
+              {p.application}
+            </option>
+          ))}
+        </select>
         <Button type="submit" variant="outline" size="sm">
           Filtrar
         </Button>
@@ -111,6 +150,7 @@ export default async function ProdutosPage({
           <table className="w-full text-left text-[13px]">
             <thead className="bg-surface-muted text-[11px] uppercase tracking-wide text-text-muted">
               <tr>
+                <th className="px-4 py-2.5 font-medium"></th>
                 <th className="px-4 py-2.5 font-medium">SKU</th>
                 <th className="px-4 py-2.5 font-medium">Produto</th>
                 <th className="px-4 py-2.5 font-medium">Categoria</th>
@@ -122,6 +162,15 @@ export default async function ProdutosPage({
             <tbody className="divide-y divide-border-subtle">
               {products.map((product) => (
                 <tr key={product.id} className="hover:bg-surface-muted/60">
+                  <td className="px-4 py-2.5">
+                    {product.images[0] ? (
+                      <div className="relative h-8 w-8 overflow-hidden rounded-[var(--radius-sm)] border border-border-subtle">
+                        <Image src={product.images[0].url} alt="" fill sizes="32px" className="object-cover" unoptimized />
+                      </div>
+                    ) : (
+                      <div className="h-8 w-8 rounded-[var(--radius-sm)] border border-dashed border-border-strong" />
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 font-tabular">
                     <Link href={`/admin/produtos/${product.id}`} className="text-brand-700 hover:underline">
                       {product.sku}

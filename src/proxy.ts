@@ -53,7 +53,11 @@ function applySecurityHeaders(response: NextResponse) {
       // needs it; Next.js/React never call eval() in production.
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      // https: (any host) because Phase 5 lets admins paste an externally
+      // hosted product image/document URL — §61 prioritizes real photos
+      // over anything we'd fabricate, and we don't control where those are
+      // hosted. Uploaded files still serve from 'self' (public/uploads/).
+      "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self'",
       "frame-ancestors 'none'",
