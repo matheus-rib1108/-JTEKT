@@ -33,6 +33,8 @@ model Tenant {
   customerCompanies CustomerCompany[]
   auditLogs         AuditLog[]
   systemSettings    SystemSetting[]
+  categories        Category[]
+  products          Product[]
 
   @@map("tenants")
 }
@@ -129,6 +131,7 @@ model User {
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
   auditLogsAsActor    AuditLog[]           @relation("AuditActor")
+  inventoryMovements  InventoryMovement[]
 
   @@unique([tenantId, email])
   @@index([customerCompanyId])
@@ -267,4 +270,165 @@ model SystemSetting {
 
   @@unique([tenantId, key])
   @@map("system_settings")
+}
+
+// ---------------------------------------------------------------------------
+// Catalog & inventory (Phase 2)
+// ---------------------------------------------------------------------------
+
+/// Simple two-level category tree (§16 catalog filters). Deeper nesting can
+/// be added later without a migration, since parentId already supports it.
+model Category {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  slug        String
+  description String?
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, parentId])
+  @@map("categories")
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  DISCONTINUED
+}
+
+/// Catalog master data (§10). Pricing (Price/PriceRule) and warehouse
+/// addressing (StorageLocation) are intentionally NOT here yet — they
+/// belong to Phases 3 and 6 respectively, once there is a warehouse map and
+/// a pricing engine to attach them to.
+model Product {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  sku         String
+  name        String
+  description String?
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  manufacturer String?
+  model        String?
+  unit         String  @default("UN") // UN, CX, KG, M, L...
+
+  /// Freeform technical specs (§60): array of { key, value }. Deliberately
+  /// not a fixed column set — a bearing and a belt do not share attributes.
+  specifications Json?
+
+  minCommercialQuantity Int           @default(1)
+  status                ProductStatus @default(DRAFT)
+
+  images    ProductImage[]
+  documents ProductDocument[]
+  inventory Inventory?
+  movements InventoryMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, status])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  url      String
+  altText  String?
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model ProductDocument {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  label String // e.g. "Ficha técnica", "Desenho técnico"
+  url   String
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@map("product_documents")
+}
+
+/// Aggregate stock for a product, still without a warehouse breakdown
+/// (Phase 3 adds StorageLocation-level detail). The internal/commercial
+/// split enforces §9: employees see quantityOnHand/Reserved/Blocked,
+/// customers ever only see quantityAvailableToSell.
+model Inventory {
+  id        String  @id @default(cuid())
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantityOnHand          Int @default(0)
+  quantityReserved        Int @default(0)
+  quantityBlocked         Int @default(0)
+  quantityAvailableToSell Int @default(0)
+
+  reorderPoint Int? // estoque mínimo
+  maxStock     Int? // estoque máximo
+  safetyStock  Int? // estoque de segurança
+
+  lastMovementAt DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@map("inventories")
+}
+
+enum InventoryMovementType {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  RESERVA
+  LIBERACAO_RESERVA
+  BLOQUEIO
+  DESBLOQUEIO
+}
+
+/// Append-only stock ledger — Inventory holds the current snapshot, this
+/// table is why the snapshot is trustworthy (§28 audit trail for stock).
+model InventoryMovement {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type     InventoryMovementType
+  quantity Int
+  reason   String?
+
+  resultingQuantityOnHand Int
+
+  performedById String?
+  performedBy   User?   @relation(fields: [performedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@map("inventory_movements")
 }

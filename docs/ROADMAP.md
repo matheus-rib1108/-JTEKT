@@ -8,17 +8,23 @@ função.
       RBAC completo (papéis + permissões seedados), sessão segura,
       registro de empresa cliente, convite de usuário, aprovação/bloqueio
       de empresa cliente, auditoria, dashboard mínimo, testes automatizados.
-- [ ] **Fase 2 — Cadastro de produtos + estoque.** `Product`, `Category`,
-      `Inventory`, `InventoryMovement`. Tela de Produtos e Estoque deixam de
-      ser placeholder.
+- [x] **Fase 2 — Cadastro de produtos + estoque.** `Category`, `Product`,
+      `Inventory`, `InventoryMovement`. Categorias, Produtos e Estoque
+      deixaram de ser placeholder: CRUD de categorias e produtos
+      (especificações técnicas livres), motor de movimentação de estoque
+      (entrada/saída/ajuste/reserva/bloqueio) com validação de limites e
+      ledger append-only, separação estoque interno × comercial (§9), e
+      consulta de catálogo no portal do cliente (só o que a Fase 5
+      completa: cotação/carrinho/pedido, ainda faltam).
 - [ ] **Fase 3 — Armazém + posições.** `Warehouse`, `WarehouseArea`,
       `StorageLocation`, endereçamento (`A-03-R12-N04-P08`), mapa visual,
       indicador de posições fora do padrão.
 - [ ] **Fase 4 — ABC/XYZ + Smart Stock Engine.** Classificação automática,
       índice de prioridade de redução, pesos configuráveis, central de
       alertas.
-- [ ] **Fase 5 — Catálogo B2B.** Navegação pública/portal de produtos,
-      especificações técnicas, documentos, filtros.
+- [ ] **Fase 5 — Catálogo B2B (completo).** Imagens, documentos técnicos,
+      filtros avançados por faixa de preço/aplicação/fabricante — a
+      navegação básica já existe desde a Fase 2.
 - [ ] **Fase 6 — Ofertas + preços.** Motor de preços com margem/preço
       mínimo, descontos por quantidade, ofertas de estoque excedente.
 - [ ] **Fase 7 — Carrinho + pedidos.** `Order`, `OrderItem`, reserva de

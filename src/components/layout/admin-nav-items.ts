@@ -20,9 +20,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Estoque",
     items: [
-      { label: "Estoque", href: "/admin/estoque", permission: PERMISSIONS.INVENTORY_VIEW, phase: "Fase 2" },
-      { label: "Produtos", href: "/admin/produtos", permission: PERMISSIONS.PRODUCTS_VIEW, phase: "Fase 2" },
-      { label: "Categorias", href: "/admin/categorias", permission: PERMISSIONS.PRODUCTS_VIEW, phase: "Fase 2" },
+      { label: "Estoque", href: "/admin/estoque", permission: PERMISSIONS.INVENTORY_VIEW },
+      { label: "Produtos", href: "/admin/produtos", permission: PERMISSIONS.PRODUCTS_VIEW },
+      { label: "Categorias", href: "/admin/categorias", permission: PERMISSIONS.PRODUCTS_VIEW },
       { label: "Armazém", href: "/admin/armazem", permission: PERMISSIONS.WAREHOUSE_VIEW, phase: "Fase 3" },
       { label: "Posições", href: "/admin/posicoes", permission: PERMISSIONS.WAREHOUSE_VIEW, phase: "Fase 3" },
     ],

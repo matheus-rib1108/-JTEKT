@@ -28,7 +28,19 @@ export function proxy(request: NextRequest) {
   return response;
 }
 
+/**
+ * `script-src` allows 'unsafe-inline' rather than a per-request nonce.
+ * Next's nonce-based CSP (its own documented pattern) requires forcing
+ * *every* route into dynamic rendering — killing static optimization
+ * app-wide — because a statically prerendered page's inline scripts are
+ * baked in at build time and can never match a fresh per-request nonce.
+ * We don't use dangerouslySetInnerHTML anywhere (React escapes all output
+ * by default), so the residual risk this trades away is narrow; revisit if
+ * a future phase introduces raw HTML rendering.
+ */
 function applySecurityHeaders(response: NextResponse) {
+  const isDev = process.env.NODE_ENV === "development";
+
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -37,7 +49,9 @@ function applySecurityHeaders(response: NextResponse) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self'",
+      // 'unsafe-eval' only in dev: React's error-overlay stack reconstruction
+      // needs it; Next.js/React never call eval() in production.
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",

@@ -72,8 +72,10 @@ N"), nunca dados simulados como se fossem reais.
 
 **Portal do cliente** (`/portal/**`, acesso apenas para `userType=CLIENT`):
 Início, Produtos, Ofertas, Meus pedidos, Cotações, Carrinho, Minha empresa,
-Suporte. "Minha empresa" (dados da empresa + convite de usuários) é
-funcional desde a Fase 1; os módulos comerciais aguardam as fases 5–9.
+Suporte. "Minha empresa" é funcional desde a Fase 1; "Produtos" é funcional
+desde a Fase 2 (consulta ao catálogo, somente disponibilidade comercial —
+nunca quantidade interna); os módulos de compra (ofertas, cotação,
+carrinho, pedido) aguardam as fases 6–9.
 
 ## 3. Arquitetura do banco de dados
 
@@ -148,7 +150,12 @@ permissão por conveniência de UX; a proteção real está nas rotas.
   banco, por identificador **e** por IP.
 - Validação de entrada com Zod em toda rota pública.
 - Cabeçalhos de segurança (`X-Frame-Options`, CSP, `Referrer-Policy`,
-  `Permissions-Policy`, HSTS em produção) aplicados no proxy de borda.
+  `Permissions-Policy`, HSTS em produção) aplicados no proxy de borda. A CSP
+  usa `script-src 'self' 'unsafe-inline'` em vez de nonce por requisição —
+  a abordagem por nonce do Next.js exige renderização dinâmica em **todas**
+  as rotas (nenhuma página estática), o que desligaria a otimização
+  estática do app inteiro; como não há `dangerouslySetInnerHTML` em
+  nenhuma tela, o risco residual é limitado.
 - Mensagens de erro genéricas onde a especificidade vazaria informação
   (login, registro, redefinição de senha nunca confirmam se um e-mail/CNPJ
   existe).

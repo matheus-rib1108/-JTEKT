@@ -48,10 +48,10 @@ export default async function PortalHomePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Catálogo ainda não disponível</CardTitle>
+          <CardTitle>Compra ainda não disponível</CardTitle>
           <CardDescription>
-            Produtos, ofertas, cotações, carrinho e pedidos entram em operação a partir da Fase 5.
-            Nenhuma informação de produto exibida aqui é real até essa fase.
+            Você já pode consultar o catálogo técnico em &quot;Produtos&quot;. Ofertas, cotações,
+            carrinho e pedidos entram em operação a partir da Fase 6.
           </CardDescription>
         </CardHeader>
         <CardContent />

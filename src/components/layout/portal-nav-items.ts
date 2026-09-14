@@ -6,7 +6,7 @@ export interface PortalNavItem {
 
 export const PORTAL_NAV: PortalNavItem[] = [
   { label: "Início", href: "/portal" },
-  { label: "Produtos", href: "/portal/produtos", phase: "Fase 5" },
+  { label: "Produtos", href: "/portal/produtos" },
   { label: "Ofertas", href: "/portal/ofertas", phase: "Fase 6" },
   { label: "Meus pedidos", href: "/portal/pedidos", phase: "Fase 7" },
   { label: "Cotações", href: "/portal/cotacoes", phase: "Fase 8" },

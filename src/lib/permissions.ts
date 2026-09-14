@@ -141,6 +141,7 @@ export const ROLE_DEFINITIONS: Record<RoleKey, RoleDefinition> = {
     isClientRole: false,
     permissions: [
       P.DASHBOARD_VIEW,
+      P.PRODUCTS_VIEW,
       P.CUSTOMERS_VIEW,
       P.CUSTOMERS_MANAGE,
       P.PRICING_VIEW,
