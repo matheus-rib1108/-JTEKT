@@ -46,6 +46,7 @@ export default async function PortalProdutosPage({
         category: true,
         inventory: true,
         images: { take: 1, orderBy: { position: "asc" } },
+        pricing: true,
       },
       orderBy: { name: "asc" },
       take: 100,
@@ -189,6 +190,15 @@ export default async function PortalProdutosPage({
                     {product.minCommercialQuantity} {product.unit}
                   </span>
                 </p>
+                {product.pricing ? (
+                  <p className="mt-1 text-[13px] font-semibold text-foreground">
+                    A partir de{" "}
+                    {Number(product.pricing.listPrice).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </p>
+                ) : null}
               </Link>
             );
           })}

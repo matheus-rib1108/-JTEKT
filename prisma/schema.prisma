@@ -38,6 +38,7 @@ model Tenant {
   warehouses        Warehouse[]
   storageLocations  StorageLocation[]
   alerts            Alert[]
+  offers            Offer[]
 
   @@map("tenants")
 }
@@ -354,6 +355,8 @@ model Product {
   storageAllocations ProductStorageLocation[]
   classification     StockClassification?
   alerts             Alert[]
+  pricing            ProductPricing?
+  offers             Offer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -623,4 +626,104 @@ model Alert {
   @@unique([tenantId, type, targetKey])
   @@index([tenantId, status])
   @@map("alerts")
+}
+
+// ---------------------------------------------------------------------------
+// Pricing engine & offers (Phase 6)
+// ---------------------------------------------------------------------------
+
+/// Commercial pricing for one product (§ "estratégia de precificação",
+/// docs/ARCHITECTURE.md §9) — separate from `Product.unitCost`, which is
+/// inventory-valuation cost, not a selling price. `minPrice` is the margin
+/// floor: `savePricing` (src/app/admin/precos/actions.ts) refuses to save a
+/// `listPrice` below it unless the actor holds PRICING_APPROVE_EXCEPTION,
+/// and every such exception is audit-logged with a mandatory reason —
+/// never silently allowed by hiding the field in the UI.
+model ProductPricing {
+  id        String  @id @default(cuid())
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  listPrice Decimal @db.Decimal(12, 2)
+  /// Null = no floor configured yet; every sale is then treated as a
+  /// manual, unenforced price until someone sets it.
+  minPrice  Decimal? @db.Decimal(12, 2)
+
+  updatedById String?
+
+  tiers PriceTier[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("product_pricing")
+}
+
+/// A progressive quantity discount step (§ "descontos por quantidade"):
+/// buying `minQuantity` units or more of this product gets `discountPercent`
+/// off the list price. Never generates a unit price below `minPrice` — that
+/// is re-validated server-side in src/lib/pricing.ts, not just at save time,
+/// since `minPrice` can change after a tier was created.
+model PriceTier {
+  id               String         @id @default(cuid())
+  productPricingId String
+  productPricing   ProductPricing @relation(fields: [productPricingId], references: [id], onDelete: Cascade)
+
+  minQuantity     Int
+  discountPercent Decimal @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+
+  @@unique([productPricingId, minQuantity])
+  @@map("price_tiers")
+}
+
+enum OfferStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+/// A time-boxed discount born from surplus the Smart Stock Engine already
+/// flagged (docs/ARCHITECTURE.md §10) — never from a guess. `internalReason`
+/// and `initialQuantityOnHand` exist to measure real progress toward
+/// `targetReduceQuantity` and to explain *why* internally; both are
+/// deliberately excluded from every client-facing query (§9/§10 — the
+/// client only ever sees the resulting discounted price). Creating an offer
+/// can never push the effective price below the product's `minPrice`: that
+/// floor has no exception at offer-creation time, unlike the pricing
+/// exception flow above.
+model Offer {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  internalReason       String?
+  discountPercent      Decimal @db.Decimal(5, 2)
+  targetReduceQuantity Int
+
+  /// Snapshot of Inventory.quantityOnHand at creation — real progress is
+  /// computed later from InventoryMovement SAIDA rows since `startedAt`,
+  /// never estimated.
+  initialQuantityOnHand Int
+
+  status OfferStatus @default(DRAFT)
+
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  createdById  String?
+  approvedById String?
+  approvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([productId, status])
+  @@map("offers")
 }

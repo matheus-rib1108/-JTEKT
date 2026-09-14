@@ -81,6 +81,7 @@ async function main() {
 
   await seedDemoCatalog(tenant.id, adminUser.id);
   await seedDemoWarehouse(tenant.id, adminUser.id);
+  await seedDemoPricing(tenant.id, adminUser.id);
 
   console.log("Seed completed.");
 }
@@ -498,6 +499,148 @@ async function seedDemoWarehouse(tenantId: string, performedById: string) {
   });
 
   console.log(`Marked ${nonStandardIds.length} positions as non-standard and set baseline.`);
+}
+
+/**
+ * Demo pricing (§9 pricing engine) and one demo offer (§10). Inserted
+ * directly via Prisma for the same reason as the functions above:
+ * src/server/pricing/engine.ts and src/server/offers/engine.ts import
+ * "server-only". List/min prices below are plausible relative to each
+ * product's already-seeded unitCost (§3), never invented independently
+ * of it.
+ */
+async function seedDemoPricing(tenantId: string, performedById: string) {
+  console.log("Seeding demo pricing...");
+
+  interface PricingDef {
+    sku: string;
+    listPrice: number;
+    minPrice: number;
+    tiers: { minQuantity: number; discountPercent: number }[];
+  }
+
+  const pricingDefs: PricingDef[] = [
+    {
+      sku: "RLM-6205-2RS",
+      listPrice: 34.9,
+      minPrice: 24.0,
+      tiers: [
+        { minQuantity: 100, discountPercent: 5 },
+        { minQuantity: 300, discountPercent: 10 },
+      ],
+    },
+    {
+      sku: "RLM-6304-2RS",
+      listPrice: 42.9,
+      minPrice: 29.0,
+      tiers: [
+        { minQuantity: 50, discountPercent: 5 },
+        { minQuantity: 150, discountPercent: 10 },
+      ],
+    },
+    {
+      sku: "ROL-CONICO-30206",
+      listPrice: 79.9,
+      minPrice: 55.0,
+      tiers: [{ minQuantity: 5, discountPercent: 5 }],
+    },
+    {
+      sku: "ROL-ESF-6006",
+      listPrice: 26.9,
+      minPrice: 18.0,
+      tiers: [
+        { minQuantity: 200, discountPercent: 8 },
+        { minQuantity: 500, discountPercent: 15 },
+      ],
+    },
+    {
+      sku: "COR-A-1200",
+      listPrice: 58.9,
+      minPrice: 40.0,
+      tiers: [{ minQuantity: 50, discountPercent: 6 }],
+    },
+    {
+      sku: "COR-B-1500",
+      listPrice: 74.9,
+      minPrice: 52.0,
+      tiers: [{ minQuantity: 40, discountPercent: 6 }],
+    },
+    {
+      sku: "RET-25X40X7",
+      listPrice: 12.9,
+      minPrice: 8.5,
+      tiers: [
+        { minQuantity: 300, discountPercent: 10 },
+        { minQuantity: 600, discountPercent: 18 },
+      ],
+    },
+    {
+      sku: "RET-40X60X10",
+      listPrice: 18.9,
+      minPrice: 12.5,
+      tiers: [
+        { minQuantity: 100, discountPercent: 8 },
+        { minQuantity: 250, discountPercent: 15 },
+      ],
+    },
+  ];
+
+  for (const def of pricingDefs) {
+    const product = await prisma.product.findUnique({ where: { tenantId_sku: { tenantId, sku: def.sku } } });
+    if (!product) continue;
+
+    const existing = await prisma.productPricing.findUnique({ where: { productId: product.id } });
+    if (existing) continue;
+
+    const pricing = await prisma.productPricing.create({
+      data: {
+        productId: product.id,
+        listPrice: def.listPrice,
+        minPrice: def.minPrice,
+        updatedById: performedById,
+      },
+    });
+
+    await prisma.priceTier.createMany({
+      data: def.tiers.map((tier) => ({
+        productPricingId: pricing.id,
+        minQuantity: tier.minQuantity,
+        discountPercent: tier.discountPercent,
+      })),
+    });
+  }
+
+  // One demo offer, already approved and active, on the SKU with the
+  // largest on-hand quantity (RET-25X40X7, 800 un.) — a plausible surplus
+  // candidate rather than an arbitrary pick. Progress starts at 0% because
+  // no sale has actually drawn down the stock yet (there is no Order
+  // model until Phase 7) — never faked as partial progress.
+  const offerProduct = await prisma.product.findUnique({
+    where: { tenantId_sku: { tenantId, sku: "RET-25X40X7" } },
+    include: { inventory: true },
+  });
+  if (offerProduct) {
+    const existingOffer = await prisma.offer.findFirst({ where: { productId: offerProduct.id } });
+    if (!existingOffer) {
+      const startedAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+      await prisma.offer.create({
+        data: {
+          tenantId,
+          productId: offerProduct.id,
+          discountPercent: 15,
+          targetReduceQuantity: 200,
+          internalReason: "Excedente de estoque identificado pelo Smart Stock Engine (§10, dados de demonstração).",
+          initialQuantityOnHand: offerProduct.inventory?.quantityOnHand ?? 0,
+          status: "ACTIVE",
+          startedAt,
+          createdById: performedById,
+          approvedById: performedById,
+          approvedAt: startedAt,
+        },
+      });
+      console.log("Created demo offer on RET-25X40X7.");
+    }
+  }
 }
 
 main()

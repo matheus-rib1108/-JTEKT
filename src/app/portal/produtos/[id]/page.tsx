@@ -6,6 +6,10 @@ import { prisma } from "@/server/db/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+function formatCurrency(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 export default async function PortalProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return null;
@@ -19,6 +23,8 @@ export default async function PortalProductDetailPage({ params }: { params: Prom
       inventory: { select: { quantityAvailableToSell: true } },
       images: { orderBy: { position: "asc" } },
       documents: { orderBy: { createdAt: "asc" } },
+      pricing: { include: { tiers: true } },
+      offers: { where: { status: "ACTIVE" }, take: 1 },
     },
   });
 
@@ -28,6 +34,14 @@ export default async function PortalProductDetailPage({ params }: { params: Prom
   const specifications = Array.isArray(product.specifications)
     ? (product.specifications as { key: string; value: string }[])
     : [];
+
+  const activeOffer = product.offers[0] ?? null;
+  const listPrice = product.pricing ? Number(product.pricing.listPrice) : null;
+  const offerDiscount = activeOffer ? Number(activeOffer.discountPercent) : null;
+  const offerPrice = listPrice != null && offerDiscount != null ? listPrice * (1 - offerDiscount / 100) : null;
+  const tiers = (product.pricing?.tiers ?? [])
+    .map((t) => ({ minQuantity: t.minQuantity, discountPercent: Number(t.discountPercent) }))
+    .sort((a, b) => a.minQuantity - b.minQuantity);
 
   return (
     <div className="space-y-5">
@@ -73,6 +87,32 @@ export default async function PortalProductDetailPage({ params }: { params: Prom
             </Badge>
             {product.category ? <Badge tone="brand">{product.category.name}</Badge> : null}
           </div>
+
+          {listPrice != null ? (
+            <div className="mt-3">
+              {offerPrice != null ? (
+                <div className="flex items-baseline gap-2">
+                  <Badge tone="danger">{offerDiscount}% OFF</Badge>
+                  <span className="text-[14px] text-text-faint line-through">{formatCurrency(listPrice)}</span>
+                  <span className="text-2xl font-semibold text-danger-600">{formatCurrency(offerPrice)}</span>
+                </div>
+              ) : (
+                <p className="text-2xl font-semibold text-foreground">{formatCurrency(listPrice)}</p>
+              )}
+              {tiers.length > 0 ? (
+                <ul className="mt-1.5 space-y-0.5 text-[12px] text-text-muted">
+                  {tiers.map((tier) => (
+                    <li key={tier.minQuantity}>
+                      A partir de {tier.minQuantity} {product.unit}: {tier.discountPercent}% de desconto (
+                      {formatCurrency(listPrice * (1 - tier.discountPercent / 100))}/{product.unit})
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-3 text-[13px] text-text-muted">Preço a consultar — fale com o time comercial.</p>
+          )}
 
           {product.description ? (
             <p className="mt-4 text-[13px] leading-relaxed text-text-muted">{product.description}</p>

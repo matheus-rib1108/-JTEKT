@@ -52,8 +52,21 @@ função.
       armazenamento em disco disparava um warning de build do Turbopack por
       montar o caminho via split/join de string em vez de segmentos
       literais.
-- [ ] **Fase 6 — Ofertas + preços.** Motor de preços com margem/preço
-      mínimo, descontos por quantidade, ofertas de estoque excedente.
+- [x] **Fase 6 — Ofertas + preços.** `ProductPricing`, `PriceTier`, `Offer`.
+      Preço de lista e preço mínimo (margem) por produto; um preço de lista
+      abaixo do mínimo exige um usuário com `pricing:approve_exception` e um
+      motivo obrigatório — nunca aprovado automaticamente, sempre auditado
+      (`pricing.min_price_exception`). Faixas de desconto progressivo por
+      quantidade, revalidadas contra o preço mínimo atual a cada nova faixa
+      (não apenas no momento em que a faixa foi criada). Ofertas nascem
+      vinculadas a um produto com preço configurado, nunca podem resultar em
+      preço abaixo do mínimo (sem exceção nesse ponto), ficam como rascunho
+      até aprovação explícita (`offers:approve`, separada de
+      `offers:manage`), e seu progresso é sempre calculado a partir do
+      estoque real (`Inventory.quantityOnHand`) desde o início da oferta —
+      nunca estimado pelo tempo decorrido. Portal do cliente: página de
+      Ofertas e preço/faixas na página de produto, sem nenhum dado interno
+      (motivo estratégico, estoque inicial, posição) exposto (§9/§10).
 - [ ] **Fase 7 — Carrinho + pedidos.** `Order`, `OrderItem`, reserva de
       estoque, economia calculada.
 - [ ] **Fase 8 — Cotações.** `Quote`, `QuoteItem`, negociação e proposta.
@@ -77,3 +90,6 @@ função.
 - E-mail transacional é um stub que apenas registra a intenção de envio
   (`src/server/notifications/email.ts`) — nenhum provedor real está
   conectado.
+- Uma oferta cujo desconto ficou inválido após uma alta no preço mínimo do
+  produto só pode ser encerrada e recriada; não há um fluxo de edição
+  direta ainda (avaliar se compensa antes da Fase 7).
