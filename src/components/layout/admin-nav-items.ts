@@ -32,7 +32,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: "Ofertas", href: "/admin/ofertas", permission: PERMISSIONS.OFFERS_VIEW },
       { label: "Preços", href: "/admin/precos", permission: PERMISSIONS.PRICING_VIEW },
-      { label: "Pedidos", href: "/admin/pedidos", permission: PERMISSIONS.ORDERS_VIEW, phase: "Fase 7" },
+      { label: "Pedidos", href: "/admin/pedidos", permission: PERMISSIONS.ORDERS_VIEW },
       { label: "Cotações", href: "/admin/cotacoes", permission: PERMISSIONS.QUOTES_VIEW, phase: "Fase 8" },
     ],
   },

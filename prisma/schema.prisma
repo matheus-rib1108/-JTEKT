@@ -39,6 +39,7 @@ model Tenant {
   storageLocations  StorageLocation[]
   alerts            Alert[]
   offers            Offer[]
+  orders            Order[]
 
   @@map("tenants")
 }
@@ -74,7 +75,8 @@ model CustomerCompany {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  users  User[]
+  orders Order[]
 
   @@unique([tenantId, cnpj])
   @@index([tenantId])
@@ -136,6 +138,9 @@ model User {
   passwordResetTokens PasswordResetToken[]
   auditLogsAsActor    AuditLog[]           @relation("AuditActor")
   inventoryMovements  InventoryMovement[]
+  ordersCreated       Order[]              @relation("OrderCreatedBy")
+  ordersConfirmed     Order[]              @relation("OrderConfirmedBy")
+  ordersCancelled     Order[]              @relation("OrderCancelledBy")
 
   @@unique([tenantId, email])
   @@index([customerCompanyId])
@@ -357,6 +362,7 @@ model Product {
   alerts             Alert[]
   pricing            ProductPricing?
   offers             Offer[]
+  orderItems         OrderItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -726,4 +732,90 @@ model Offer {
   @@index([tenantId, status])
   @@index([productId, status])
   @@map("offers")
+}
+
+// ---------------------------------------------------------------------------
+// Cart & orders (Phase 7)
+// ---------------------------------------------------------------------------
+
+enum OrderStatus {
+  /// The client's shopping cart. Exactly one DRAFT order exists per
+  /// CustomerCompany at a time (src/server/orders/engine.ts enforces this
+  /// by reusing the existing one rather than creating a second) — every
+  /// user from that company shares the same cart.
+  DRAFT
+  SUBMITTED
+  CONFIRMED
+  CANCELLED
+}
+
+/// A cart (status DRAFT) or a placed order (anything else) for one
+/// CustomerCompany. Submitting reserves real stock via the existing
+/// inventory ledger (src/server/inventory/engine.ts's RESERVA movement) —
+/// there is no separate, parallel stock-tracking concept here.
+model Order {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  customerCompanyId String
+  customerCompany   CustomerCompany @relation(fields: [customerCompanyId], references: [id], onDelete: Cascade)
+
+  status OrderStatus @default(DRAFT)
+
+  createdByUserId String?
+  createdBy       User?   @relation("OrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  submittedAt DateTime?
+
+  confirmedAt   DateTime?
+  confirmedById String?
+  confirmedBy   User?     @relation("OrderConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  cancelledAt        DateTime?
+  cancelledById       String?
+  cancelledBy         User?     @relation("OrderCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+  cancellationReason  String?
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([customerCompanyId, status])
+  @@map("orders")
+}
+
+enum OrderItemDiscountSource {
+  NONE
+  TIER
+  OFFER
+}
+
+/// `unitPrice`/`listPriceUnitPrice` are a snapshot taken when the item was
+/// added to the cart, not a live computation — a submitted order's total
+/// must keep matching what the client actually saw, even if the product's
+/// price changes afterward. `listPriceUnitPrice` is what makes "economia
+/// calculada" (§29) a real subtraction instead of an invented number.
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantity Int
+
+  unitPrice          Decimal                 @db.Decimal(12, 2)
+  listPriceUnitPrice Decimal                 @db.Decimal(12, 2)
+  discountPercent    Decimal                 @default(0) @db.Decimal(5, 2)
+  discountSource     OrderItemDiscountSource @default(NONE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orderId, productId])
+  @@map("order_items")
 }

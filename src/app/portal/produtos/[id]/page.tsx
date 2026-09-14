@@ -5,6 +5,9 @@ import { getCurrentUser } from "@/server/auth/rbac";
 import { prisma } from "@/server/db/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PERMISSIONS } from "@/lib/permissions";
+import { addProductToCart } from "../../carrinho/actions";
+import { AddToCartForm } from "./add-to-cart-form";
 
 function formatCurrency(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -113,6 +116,18 @@ export default async function PortalProductDetailPage({ params }: { params: Prom
           ) : (
             <p className="mt-3 text-[13px] text-text-muted">Preço a consultar — fale com o time comercial.</p>
           )}
+
+          {listPrice != null && available && user.permissions.has(PERMISSIONS.CLIENT_ORDERS_MANAGE) ? (
+            <div className="mt-4">
+              <AddToCartForm
+                productId={product.id}
+                unit={product.unit}
+                minCommercialQuantity={product.minCommercialQuantity}
+                maxQuantity={product.inventory?.quantityAvailableToSell ?? 0}
+                action={addProductToCart}
+              />
+            </div>
+          ) : null}
 
           {product.description ? (
             <p className="mt-4 text-[13px] leading-relaxed text-text-muted">{product.description}</p>

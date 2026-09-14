@@ -62,6 +62,10 @@ export const PERMISSIONS = {
   CLIENT_PORTAL_ACCESS: "client_portal:access",
   CLIENT_COMPANY_MANAGE: "client_company:manage",
   CLIENT_ORDERS_VIEW: "client_orders:view",
+  /** Cart + checkout: add/remove items, submit an order for the caller's own
+   * customerCompany. Distinct from CLIENT_ORDERS_VIEW ("see order
+   * history") the same way every internal view/manage pair above is. */
+  CLIENT_ORDERS_MANAGE: "client_orders:manage",
   CLIENT_QUOTES_MANAGE: "client_quotes:manage",
 } as const;
 
@@ -190,6 +194,7 @@ export const ROLE_DEFINITIONS: Record<RoleKey, RoleDefinition> = {
       P.CLIENT_PORTAL_ACCESS,
       P.CLIENT_COMPANY_MANAGE,
       P.CLIENT_ORDERS_VIEW,
+      P.CLIENT_ORDERS_MANAGE,
       P.CLIENT_QUOTES_MANAGE,
     ],
   },
@@ -197,6 +202,6 @@ export const ROLE_DEFINITIONS: Record<RoleKey, RoleDefinition> = {
     name: "Usuário da Empresa Cliente",
     description: "Usuário comum de uma empresa cliente.",
     isClientRole: true,
-    permissions: [P.CLIENT_PORTAL_ACCESS, P.CLIENT_ORDERS_VIEW, P.CLIENT_QUOTES_MANAGE],
+    permissions: [P.CLIENT_PORTAL_ACCESS, P.CLIENT_ORDERS_VIEW, P.CLIENT_ORDERS_MANAGE, P.CLIENT_QUOTES_MANAGE],
   },
 };

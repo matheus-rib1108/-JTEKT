@@ -67,8 +67,27 @@ função.
       nunca estimado pelo tempo decorrido. Portal do cliente: página de
       Ofertas e preço/faixas na página de produto, sem nenhum dado interno
       (motivo estratégico, estoque inicial, posição) exposto (§9/§10).
-- [ ] **Fase 7 — Carrinho + pedidos.** `Order`, `OrderItem`, reserva de
-      estoque, economia calculada.
+- [x] **Fase 7 — Carrinho + pedidos.** `Order`, `OrderItem` (+
+      `CLIENT_ORDERS_MANAGE`, distinta de `CLIENT_ORDERS_VIEW` como todo par
+      view/manage do resto do RBAC). O carrinho é o próprio `Order` em
+      status `DRAFT` — uma linha por `CustomerCompany`, compartilhada por
+      todos os usuários da empresa. Preço unitário e preço de lista são
+      congelados em cada item no momento em que ele é adicionado/atualizado
+      (nunca recalculados depois), o que torna a "economia calculada" uma
+      subtração real entre dois números guardados, não uma estimativa.
+      Oferta ativa sempre vence a faixa de desconto por quantidade — regra
+      explícita, não "o que for menor". Finalizar o carrinho reserva estoque
+      de verdade reaproveitando o próprio ledger de movimentações da Fase 2
+      (`RESERVA`), em uma única transação cobrindo todos os itens — se um
+      item não tiver saldo, nenhum é reservado. Cancelar um pedido libera a
+      reserva (`LIBERACAO_RESERVA`) e devolve a exposição comercial
+      (`quantityAvailableToSell`) exatamente pela quantidade liberada —
+      sem isso, o clamp genérico da Fase 2 (que só reduz, nunca aumenta de
+      volta) deixaria o produto parecendo permanentemente menos disponível
+      após qualquer cancelamento. Admin: página Pedidos (confirmar/cancelar,
+      permissão `orders:manage` restrita a ADMIN/SUPER_ADMIN por ora).
+      Portal: Carrinho, Meus pedidos, e "Adicionar ao carrinho" na página de
+      produto.
 - [ ] **Fase 8 — Cotações.** `Quote`, `QuoteItem`, negociação e proposta.
 - [ ] **Fase 9 — Logística.** `Shipment`, status de separação/expedição.
 - [ ] **Fase 10 — Dashboard executivo + Analytics.**
