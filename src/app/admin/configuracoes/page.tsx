@@ -4,6 +4,10 @@ import { Forbidden } from "@/components/layout/forbidden";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SESSION_TTL_MS } from "@/server/auth/session";
+import { prisma } from "@/server/db/client";
+import { DEFAULT_PRIORITY_WEIGHTS, type PriorityWeights } from "@/lib/stockClassification";
+import { PRIORITY_WEIGHTS_SETTING_KEY } from "@/lib/analytics-constants";
+import { WeightsForm } from "./weights-form";
 
 export const metadata = { title: "Configurações — StockFlow B2B" };
 
@@ -11,15 +15,44 @@ export default async function ConfiguracoesPage() {
   const auth = await requirePermission(PERMISSIONS.SETTINGS_VIEW);
   if (!auth.user) return <Forbidden />;
 
+  const canManageWeights = auth.user.permissions.has(PERMISSIONS.SETTINGS_MANAGE);
+  const weightsSetting = await prisma.systemSetting.findUnique({
+    where: { tenantId_key: { tenantId: auth.user.tenantId, key: PRIORITY_WEIGHTS_SETTING_KEY } },
+  });
+  const currentWeights: PriorityWeights = {
+    ...DEFAULT_PRIORITY_WEIGHTS,
+    ...(weightsSetting?.value as Partial<PriorityWeights> | undefined),
+  };
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Configurações</h1>
         <p className="text-[13px] text-text-muted">
-          Parâmetros de segurança da Fase 1. Pesos do Smart Stock Engine, regras de precificação e
-          margens mínimas serão configuráveis aqui a partir da Fase 4/6.
+          Parâmetros de segurança e do Smart Stock Engine. Regras de precificação e margens
+          mínimas serão configuráveis aqui a partir da Fase 6.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pesos do índice de prioridade de redução</CardTitle>
+          <CardDescription>
+            Quanto cada fator pesa no score 0-100 de cada produto (§4). Alterar aqui só muda os
+            próximos recálculos — use &quot;Recalcular&quot; em Estoque para aplicar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {canManageWeights ? (
+            <WeightsForm current={currentWeights} />
+          ) : (
+            <p className="text-[13px] text-text-muted">
+              Cobertura {currentWeights.coverage} · Idle {currentWeights.idle} · Espaço{" "}
+              {currentWeights.space} · Valor {currentWeights.value}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

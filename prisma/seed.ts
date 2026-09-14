@@ -119,6 +119,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
     model: string;
     specifications: { key: string; value: string }[];
     minCommercialQuantity: number;
+    unitCost: number;
     inventory: {
       quantityOnHand: number;
       quantityReserved: number;
@@ -144,6 +145,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         { key: "Vedação", value: "2RS (dupla borracha)" },
       ],
       minCommercialQuantity: 50,
+      unitCost: 18.5,
       inventory: {
         quantityOnHand: 420,
         quantityReserved: 20,
@@ -166,6 +168,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         { key: "Largura", value: "21 mm" },
       ],
       minCommercialQuantity: 50,
+      unitCost: 22.9,
       inventory: {
         quantityOnHand: 60,
         quantityReserved: 10,
@@ -188,6 +191,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         { key: "Tipo", value: "Rolos cônicos" },
       ],
       minCommercialQuantity: 10,
+      unitCost: 45.0,
       inventory: {
         quantityOnHand: 12,
         quantityReserved: 0,
@@ -210,6 +214,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         { key: "Largura", value: "13 mm" },
       ],
       minCommercialQuantity: 100,
+      unitCost: 14.2,
       inventory: {
         quantityOnHand: 500,
         quantityReserved: 0,
@@ -231,6 +236,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         { key: "Comprimento", value: "1200 mm" },
       ],
       minCommercialQuantity: 20,
+      unitCost: 32.0,
       inventory: {
         quantityOnHand: 150,
         quantityReserved: 0,
@@ -252,6 +258,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         { key: "Comprimento", value: "1500 mm" },
       ],
       minCommercialQuantity: 20,
+      unitCost: 41.5,
       inventory: {
         quantityOnHand: 90,
         quantityReserved: 0,
@@ -274,6 +281,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         { key: "Espessura", value: "7 mm" },
       ],
       minCommercialQuantity: 100,
+      unitCost: 6.8,
       inventory: {
         quantityOnHand: 800,
         quantityReserved: 50,
@@ -296,6 +304,7 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         { key: "Espessura", value: "10 mm" },
       ],
       minCommercialQuantity: 50,
+      unitCost: 9.9,
       inventory: {
         quantityOnHand: 300,
         quantityReserved: 0,
@@ -324,9 +333,14 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
         model: def.model,
         unit: "UN",
         minCommercialQuantity: def.minCommercialQuantity,
+        unitCost: def.unitCost,
         status: "ACTIVE",
         specifications: def.specifications,
-        inventory: { create: def.inventory },
+        // lastMovementAt mirrors the ENTRADA created just below — this
+        // bypasses src/server/inventory/engine.ts (see module comment
+        // above), so it must be set by hand or the row would read as "no
+        // movement ever recorded" despite the initial stock load existing.
+        inventory: { create: { ...def.inventory, lastMovementAt: new Date() } },
       },
     });
 

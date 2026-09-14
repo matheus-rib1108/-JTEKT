@@ -47,6 +47,7 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
           include: { storageLocation: { include: { warehouse: true } } },
           orderBy: { createdAt: "asc" },
         },
+        classification: true,
       },
     }),
     prisma.category.findMany({ where: { tenantId: auth.user.tenantId }, orderBy: { name: "asc" } }),
@@ -111,6 +112,7 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
                   unit: product.unit,
                   minCommercialQuantity: product.minCommercialQuantity,
                   status: product.status,
+                  unitCost: product.unitCost?.toString() ?? "",
                   specifications,
                 }}
               />
@@ -145,6 +147,8 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
           </Card>
         </div>
       </div>
+
+      <ClassificationCard classification={product.classification} unitCost={product.unitCost} />
 
       {canManageInventory ? (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -255,5 +259,130 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <dt className="text-[11px] uppercase tracking-wide text-text-faint">{label}</dt>
       <dd className="font-medium text-foreground">{value}</dd>
     </div>
+  );
+}
+
+const ABC_EXPLANATION = {
+  A: "Alto impacto financeiro — evitar reduções agressivas.",
+  B: "Impacto intermediário.",
+  C: "Baixo impacto — candidato a otimização de espaço/estoque.",
+} as const;
+
+const XYZ_EXPLANATION = {
+  X: "Demanda previsível.",
+  Y: "Demanda variável.",
+  Z: "Demanda irregular.",
+} as const;
+
+interface ClassificationFactors {
+  coverageDays: number | null;
+  daysSinceLastMovement: number | null;
+  occupiedPositions: number;
+  valueTied: number | null;
+  scoreBeforeDampening: number;
+  abcDampeningApplied: boolean;
+}
+
+function ClassificationCard({
+  classification,
+  unitCost,
+}: {
+  classification: {
+    abcClass: string | null;
+    xyzClass: string | null;
+    priorityScore: number | null;
+    factors: unknown;
+    computedAt: Date;
+  } | null;
+  unitCost: unknown;
+}) {
+  if (!classification) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Classificação Smart Stock Engine</CardTitle>
+          <CardDescription>Ainda não calculada. Use &quot;Recalcular&quot; em Estoque.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  const factors = classification.factors as Partial<ClassificationFactors> | null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Classificação Smart Stock Engine</CardTitle>
+        <CardDescription>
+          Calculada em {classification.computedAt.toLocaleString("pt-BR")} — transparente, a partir
+          dos números reais abaixo (§3/§4).
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-text-faint">ABC</p>
+            {classification.abcClass ? (
+              <>
+                <p className="text-[15px] font-semibold text-foreground">{classification.abcClass}</p>
+                <p className="text-[12px] text-text-muted">
+                  {ABC_EXPLANATION[classification.abcClass as "A" | "B" | "C"]}
+                </p>
+              </>
+            ) : (
+              <p className="text-[13px] text-text-faint">
+                N/D {unitCost === null ? "— cadastre o custo unitário" : ""}
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-text-faint">XYZ</p>
+            {classification.xyzClass ? (
+              <>
+                <p className="text-[15px] font-semibold text-foreground">{classification.xyzClass}</p>
+                <p className="text-[12px] text-text-muted">
+                  {XYZ_EXPLANATION[classification.xyzClass as "X" | "Y" | "Z"]}
+                </p>
+              </>
+            ) : (
+              <p className="text-[13px] text-text-faint">N/D — sem histórico de saídas suficiente</p>
+            )}
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-text-faint">Prioridade de redução</p>
+            <p className="text-[15px] font-semibold text-foreground">
+              {classification.priorityScore ?? "—"}/100
+            </p>
+            {factors?.abcDampeningApplied ? (
+              <p className="text-[12px] text-text-muted">
+                Reduzido de {factors.scoreBeforeDampening} por ser classe A.
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        {factors ? (
+          <dl className="grid grid-cols-2 gap-3 border-t border-border-subtle pt-3 text-[13px] sm:grid-cols-3">
+            <DetailRow
+              label="Cobertura estimada"
+              value={factors.coverageDays != null ? `${Math.round(factors.coverageDays)} dias` : "Sem consumo registrado"}
+            />
+            <DetailRow
+              label="Dias sem movimentação"
+              value={factors.daysSinceLastMovement != null ? String(factors.daysSinceLastMovement) : "—"}
+            />
+            <DetailRow label="Posições ocupadas" value={String(factors.occupiedPositions ?? 0)} />
+            <DetailRow
+              label="Valor parado"
+              value={
+                factors.valueTied != null
+                  ? factors.valueTied.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                  : "Sem custo cadastrado"
+              }
+            />
+          </dl>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }

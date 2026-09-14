@@ -51,7 +51,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: "Logística", href: "/admin/logistica", permission: PERMISSIONS.LOGISTICS_VIEW, phase: "Fase 9" },
       { label: "Relatórios", href: "/admin/relatorios", permission: PERMISSIONS.REPORTS_VIEW, phase: "Fase 11" },
       { label: "Analytics", href: "/admin/analytics", permission: PERMISSIONS.ANALYTICS_VIEW, phase: "Fase 10" },
-      { label: "Alertas", href: "/admin/alertas", permission: PERMISSIONS.ALERTS_VIEW, phase: "Fase 4" },
+      { label: "Alertas", href: "/admin/alertas", permission: PERMISSIONS.ALERTS_VIEW },
     ],
   },
   {

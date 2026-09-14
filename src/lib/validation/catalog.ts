@@ -34,6 +34,12 @@ export const productSchema = z.object({
   unit: z.string().trim().min(1).max(10).default("UN"),
   minCommercialQuantity: z.coerce.number().int().min(1).max(1_000_000),
   status: z.enum(productStatusValues),
+  // Inventory-valuation unit cost, NOT the Phase 6 pricing engine (§3).
+  // Null when empty — excluded from ABC ranking rather than guessed.
+  unitCost: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : v),
+    z.coerce.number().min(0).max(999_999_999).optional(),
+  ),
   specifications: z
     .string()
     .optional()

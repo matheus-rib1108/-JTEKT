@@ -19,6 +19,7 @@ export interface ProductFormValues {
   unit: string;
   minCommercialQuantity: number;
   status: "DRAFT" | "ACTIVE" | "DISCONTINUED";
+  unitCost: string;
   specifications: SpecificationEntry[];
 }
 
@@ -32,6 +33,7 @@ const EMPTY_VALUES: ProductFormValues = {
   unit: "UN",
   minCommercialQuantity: 1,
   status: "DRAFT",
+  unitCost: "",
   specifications: [],
 };
 
@@ -169,17 +171,34 @@ export function ProductForm({
         </div>
       </div>
 
-      <div className="w-48">
-        <Label htmlFor="minCommercialQuantity">Quantidade mínima de venda</Label>
-        <Input
-          id="minCommercialQuantity"
-          name="minCommercialQuantity"
-          type="number"
-          min={1}
-          required
-          value={values.minCommercialQuantity}
-          onChange={(e) => update("minCommercialQuantity", Number(e.target.value))}
-        />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="minCommercialQuantity">Quantidade mínima de venda</Label>
+          <Input
+            id="minCommercialQuantity"
+            name="minCommercialQuantity"
+            type="number"
+            min={1}
+            required
+            value={values.minCommercialQuantity}
+            onChange={(e) => update("minCommercialQuantity", Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <Label htmlFor="unitCost">Custo unitário (R$, opcional)</Label>
+          <Input
+            id="unitCost"
+            name="unitCost"
+            type="number"
+            min={0}
+            step="0.01"
+            value={values.unitCost}
+            onChange={(e) => update("unitCost", e.target.value)}
+          />
+          <p className="mt-1 text-[11px] text-text-faint">
+            Usado apenas para classificação ABC (§3) — não é o preço de venda.
+          </p>
+        </div>
       </div>
 
       <div>

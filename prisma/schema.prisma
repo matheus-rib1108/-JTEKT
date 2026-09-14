@@ -37,6 +37,7 @@ model Tenant {
   products          Product[]
   warehouses        Warehouse[]
   storageLocations  StorageLocation[]
+  alerts            Alert[]
 
   @@map("tenants")
 }
@@ -336,11 +337,19 @@ model Product {
   minCommercialQuantity Int           @default(1)
   status                ProductStatus @default(DRAFT)
 
+  /// Unit cost for inventory valuation (§3 "valor unitário"/"valor total
+  /// parado") — deliberately NOT the commercial pricing engine (list price,
+  /// margin rules, quantity tiers), which is Phase 6. Nullable: a product
+  /// missing cost data is excluded from ABC ranking rather than guessing.
+  unitCost Decimal? @db.Decimal(12, 2)
+
   images             ProductImage[]
   documents          ProductDocument[]
   inventory          Inventory?
   movements          InventoryMovement[]
   storageAllocations ProductStorageLocation[]
+  classification     StockClassification?
+  alerts             Alert[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -495,6 +504,7 @@ model StorageLocation {
   notes           String?
 
   allocations ProductStorageLocation[]
+  alerts      Alert[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -527,4 +537,86 @@ model ProductStorageLocation {
   @@unique([productId, storageLocationId])
   @@index([storageLocationId])
   @@map("product_storage_locations")
+}
+
+// ---------------------------------------------------------------------------
+// Smart Stock Engine & alerts (Phase 4)
+// ---------------------------------------------------------------------------
+
+/// Cached result of the last classification run for a product (§3/§4).
+/// Recomputed on demand (src/server/analytics/engine.ts) from real
+/// inventory/movement/allocation data — never hand-edited. `factors` stores
+/// the actual numbers the score was built from, so the score is never a
+/// black box (§4: "não inventar dados").
+model StockClassification {
+  id        String  @id @default(cuid())
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// "A" | "B" | "C" | null (null = excluded from ranking, e.g. no unitCost)
+  abcClass      String?
+  /// "X" | "Y" | "Z" | null (null = not enough movement history yet)
+  xyzClass      String?
+  /// 0-100, null only if the product has no inventory row at all
+  priorityScore Int?
+
+  factors Json?
+
+  computedAt DateTime @default(now())
+
+  @@map("stock_classifications")
+}
+
+enum AlertType {
+  BELOW_REORDER_POINT
+  ABOVE_MAX_STOCK
+  IDLE_STOCK
+  MANY_POSITIONS_OCCUPIED
+  NON_STANDARD_POSITION
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  RESOLVED
+}
+
+/// §22's alert center. `targetKey` is always a non-null string (productId,
+/// storageLocationId, or a synthetic key) — deliberately NOT relying on a
+/// unique constraint over the nullable productId/storageLocationId columns,
+/// since Postgres treats every NULL as distinct for uniqueness purposes and
+/// would silently allow duplicate open alerts for the same condition.
+model Alert {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  type      AlertType
+  severity  AlertSeverity @default(WARNING)
+  targetKey String
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  storageLocationId String?
+  storageLocation   StorageLocation? @relation(fields: [storageLocationId], references: [id], onDelete: Cascade)
+
+  message String
+  details Json?
+
+  status       AlertStatus @default(OPEN)
+  resolvedAt   DateTime?
+  resolvedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, type, targetKey])
+  @@index([tenantId, status])
+  @@map("alerts")
 }

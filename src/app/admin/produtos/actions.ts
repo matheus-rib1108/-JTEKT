@@ -31,6 +31,7 @@ function readProductFormData(formData: FormData) {
     unit: formData.get("unit"),
     minCommercialQuantity: formData.get("minCommercialQuantity"),
     status: formData.get("status"),
+    unitCost: formData.get("unitCost"),
     specifications: formData.get("specifications"),
   };
 }
@@ -62,6 +63,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
       unit: data.unit,
       minCommercialQuantity: data.minCommercialQuantity,
       status: data.status,
+      unitCost: data.unitCost ?? null,
       specifications: data.specifications,
       inventory: { create: {} },
     },
@@ -115,6 +117,7 @@ export async function updateProduct(productId: string, formData: FormData): Prom
       unit: data.unit,
       minCommercialQuantity: data.minCommercialQuantity,
       status: data.status,
+      unitCost: data.unitCost ?? null,
       specifications: data.specifications,
     },
   });

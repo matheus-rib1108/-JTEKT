@@ -24,9 +24,17 @@ função.
       contra o estoque em mãos, e o indicador de posições fora do padrão
       (§17) com meta configurável, progresso e histórico de correções via
       auditoria.
-- [ ] **Fase 4 — ABC/XYZ + Smart Stock Engine.** Classificação automática,
-      índice de prioridade de redução, pesos configuráveis, central de
-      alertas.
+- [x] **Fase 4 — ABC/XYZ + Smart Stock Engine.** `StockClassification`,
+      `Alert`. Classificação ABC por Pareto de valor parado (onHand ×
+      `unitCost`, novo campo — não é o motor de preços da Fase 6), XYZ por
+      coeficiente de variação do consumo dos últimos 6 meses, índice de
+      prioridade de redução 0-100 com pesos configuráveis pelo
+      administrador e amortecimento para itens classe A. Central de
+      alertas real (estoque abaixo/acima do limite, sem movimentação,
+      muitas posições ocupadas, posição fora do padrão), gerada e
+      resolvida automaticamente a cada recálculo. Nunca fabrica uma classe
+      quando falta dado real (custo não cadastrado → ABC "N/D"; menos de 3
+      períodos de consumo → XYZ "N/D").
 - [ ] **Fase 5 — Catálogo B2B (completo).** Imagens, documentos técnicos,
       filtros avançados por faixa de preço/aplicação/fabricante — a
       navegação básica já existe desde a Fase 2.
