@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/*
+ * StockFlow B2B design tokens.
+ * Industrial palette: deep steel-navy as the institutional color, a
+ * controlled safety-amber accent (used sparingly, for primary actions and
+ * priority signals — not decoration), and a neutral steel-gray scale for
+ * structure. Deliberately avoids the generic purple/blue-gradient,
+ * glassmorphism "AI tool" look: flat surfaces, small radii, restrained
+ * shadows, real borders.
+ */
+:root {
+  --background: #f6f7f8;
+  --foreground: #101418;
+
+  --surface: #ffffff;
+  --surface-muted: #f0f2f4;
+  --border-subtle: #e1e5e9;
+  --border-strong: #c7ced6;
+
+  --brand-950: #06141f;
+  --brand-900: #0b2233;
+  --brand-800: #123249;
+  --brand-700: #1a4563;
+  --brand-600: #245780;
+  --brand-500: #326d9e;
+  --brand-400: #5a8cb8;
+  --brand-100: #dde9f1;
+  --brand-50: #eef4f8;
+
+  --accent-700: #9a4a12;
+  --accent-600: #b85a16;
+  --accent-500: #d6701f;
+  --accent-100: #f7e3cd;
+
+  --success-600: #16713d;
+  --success-100: #dcf0e3;
+  --warning-700: #92400e;
+  --warning-600: #b45309;
+  --warning-100: #fef0dc;
+  --danger-600: #b91c1c;
+  --danger-100: #fbe2e2;
+
+  --text-muted: #52606d;
+  --text-faint: #7a8794;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  --color-brand-950: var(--brand-950);
+  --color-brand-900: var(--brand-900);
+  --color-brand-800: var(--brand-800);
+  --color-brand-700: var(--brand-700);
+  --color-brand-600: var(--brand-600);
+  --color-brand-500: var(--brand-500);
+  --color-brand-400: var(--brand-400);
+  --color-brand-100: var(--brand-100);
+  --color-brand-50: var(--brand-50);
+
+  --color-accent-700: var(--accent-700);
+  --color-accent-600: var(--accent-600);
+  --color-accent-500: var(--accent-500);
+  --color-accent-100: var(--accent-100);
+
+  --color-success-600: var(--success-600);
+  --color-success-100: var(--success-100);
+  --color-warning-700: var(--warning-700);
+  --color-warning-600: var(--warning-600);
+  --color-warning-100: var(--warning-100);
+  --color-danger-600: var(--danger-600);
+  --color-danger-100: var(--danger-100);
+
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+
+* {
+  border-color: var(--border-subtle);
+}
+
+::selection {
+  background: var(--brand-100);
+}
+
+/* Numeric/code fields (SKUs, positions, CNPJ) use a monospaced face so
+   digits align — this is a deliberate industrial-catalog cue, not decor. */
+.font-tabular {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}

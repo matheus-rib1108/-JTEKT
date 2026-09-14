@@ -1,0 +1,270 @@
+// StockFlow B2B — Prisma schema
+// Phase 1 scope: multi-tenant foundation, RBAC, auth, audit.
+// Inventory/warehouse/pricing/offer/order entities are introduced in later phases
+// (see docs/ARCHITECTURE.md and docs/ROADMAP.md) to keep each phase reviewable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Multi-tenancy
+// ---------------------------------------------------------------------------
+
+/// The operating business using the platform (e.g. JTEKT). All internal users,
+/// customers, and — from Phase 2 onward — products/warehouses/orders are
+/// scoped to a Tenant so multiple companies can share the platform in
+/// isolation (see section 37 of the product brief).
+model Tenant {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  cnpj      String?
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  users             User[]
+  customerCompanies CustomerCompany[]
+  auditLogs         AuditLog[]
+  systemSettings    SystemSetting[]
+
+  @@map("tenants")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+/// A B2B client company that buys from a Tenant (e.g. a workshop that buys
+/// bearings from JTEKT). Holds fiscal/registration data required in section 8.
+model CustomerCompany {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  legalName         String
+  tradeName         String?
+  cnpj              String
+  stateRegistration String?
+  email             String?
+  phone             String?
+  addressLine       String?
+  city              String?
+  state             String?
+  postalCode        String?
+  country           String  @default("BR")
+
+  status       CustomerCompanyStatus @default(PENDING_VALIDATION)
+  approvedAt   DateTime?
+  approvedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@unique([tenantId, cnpj])
+  @@index([tenantId])
+  @@map("customer_companies")
+}
+
+enum CustomerCompanyStatus {
+  PENDING_VALIDATION
+  ACTIVE
+  BLOCKED
+  REJECTED
+}
+
+// ---------------------------------------------------------------------------
+// Identity, RBAC
+// ---------------------------------------------------------------------------
+
+enum UserType {
+  INTERNAL
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  DISABLED
+}
+
+model User {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  userType          UserType
+  customerCompanyId String?
+  customerCompany   CustomerCompany? @relation(fields: [customerCompanyId], references: [id], onDelete: Cascade)
+
+  name         String
+  email        String
+  passwordHash String
+  status       UserStatus @default(ACTIVE)
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+
+  mfaEnabled Boolean @default(false)
+  mfaSecret  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  auditLogsAsActor    AuditLog[]           @relation("AuditActor")
+
+  @@unique([tenantId, email])
+  @@index([customerCompanyId])
+  @@map("users")
+}
+
+/// Roles are seeded per the RBAC matrix in section 26 of the product brief.
+/// Permission checks always happen server-side (see docs/ARCHITECTURE.md §6).
+model Role {
+  id           String  @id @default(cuid())
+  key          String  @unique // e.g. SUPER_ADMIN, ADMIN, ESTOQUE, CLIENT_ADMIN...
+  name         String
+  description  String?
+  isClientRole Boolean @default(false)
+
+  permissions RolePermission[]
+  users       User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("roles")
+}
+
+/// Granular permission strings, e.g. "inventory:write", "pricing:approve".
+model Permission {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  description String?
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ---------------------------------------------------------------------------
+// Sessions & credential recovery
+// ---------------------------------------------------------------------------
+
+/// Server-side session store (opaque token, not JWT) so sessions can be
+/// revoked instantly — required for the security posture in section 27.
+model Session {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String  @unique
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+/// Tracks login attempts (by email and by IP) to power rate limiting and
+/// brute-force lockout, independent of whether the account exists.
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  identifier String // email or IP, kept generic for reuse across endpoints
+  success    Boolean
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([identifier, createdAt])
+  @@map("login_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Audit & configuration
+// ---------------------------------------------------------------------------
+
+/// Append-only trail for every sensitive action (section 28). Never updated
+/// or deleted by application code.
+model AuditLog {
+  id       String  @id @default(cuid())
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  actorUserId String?
+  actor       User?   @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  action     String // e.g. "user.login", "product.price.update"
+  entityType String
+  entityId   String?
+  ipAddress  String?
+
+  beforeData Json?
+  afterData  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+/// Key/value configuration, e.g. pricing-engine weights, session TTL,
+/// scoped globally (tenantId null) or per tenant.
+model SystemSetting {
+  id       String  @id @default(cuid())
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  key         String
+  value       Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  @@unique([tenantId, key])
+  @@map("system_settings")
+}
