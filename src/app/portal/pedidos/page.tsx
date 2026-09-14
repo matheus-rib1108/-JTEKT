@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { computeOrderTotals } from "@/lib/orders";
-import type { OrderStatus } from "@prisma/client";
+import type { OrderStatus, ShipmentStatus } from "@prisma/client";
 
 export const metadata = { title: "Meus pedidos — StockFlow B2B" };
 
@@ -21,6 +21,19 @@ const STATUS_TONE: Record<OrderStatus, "neutral" | "success" | "warning" | "dang
   CANCELLED: "danger",
 };
 
+const SHIPMENT_STATUS_LABEL: Record<ShipmentStatus, string> = {
+  PICKING: "Em separação",
+  PACKED: "Embalado",
+  SHIPPED: "Despachado",
+  DELIVERED: "Entregue",
+};
+const SHIPMENT_STATUS_TONE: Record<ShipmentStatus, "neutral" | "success" | "warning" | "brand"> = {
+  PICKING: "warning",
+  PACKED: "brand",
+  SHIPPED: "brand",
+  DELIVERED: "success",
+};
+
 function formatCurrency(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -31,7 +44,10 @@ export default async function PortalPedidosPage() {
 
   const orders = await prisma.order.findMany({
     where: { tenantId: user.tenantId, customerCompanyId: user.customerCompanyId, status: { not: "DRAFT" } },
-    include: { items: { include: { product: { select: { name: true, sku: true, unit: true } } } } },
+    include: {
+      items: { include: { product: { select: { name: true, sku: true, unit: true } } } },
+      shipment: { select: { status: true, carrierName: true, trackingCode: true } },
+    },
     orderBy: { submittedAt: "desc" },
   });
 
@@ -92,6 +108,19 @@ export default async function PortalPedidosPage() {
 
                   {order.status === "CANCELLED" && order.cancellationReason ? (
                     <p className="mt-2 text-[12px] text-text-muted">Motivo do cancelamento: {order.cancellationReason}</p>
+                  ) : null}
+
+                  {order.shipment ? (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-3 text-[13px]">
+                      <span className="text-text-muted">
+                        {order.shipment.carrierName || order.shipment.trackingCode
+                          ? `${order.shipment.carrierName ?? "—"} · ${order.shipment.trackingCode ?? "—"}`
+                          : "Entrega"}
+                      </span>
+                      <Badge tone={SHIPMENT_STATUS_TONE[order.shipment.status]}>
+                        {SHIPMENT_STATUS_LABEL[order.shipment.status]}
+                      </Badge>
+                    </div>
                   ) : null}
                 </CardContent>
               </Card>

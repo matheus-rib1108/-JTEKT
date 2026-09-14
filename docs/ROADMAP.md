@@ -98,7 +98,20 @@ função.
       páginas Cotações (lista + detalhe com formulário de resposta). Portal:
       página Cotações (aceitar/rejeitar/cancelar) e "Solicitar cotação" na
       página de produto.
-- [ ] **Fase 9 — Logística.** `Shipment`, status de separação/expedição.
+- [x] **Fase 9 — Logística.** `Shipment` (§9 "separação/expedição").
+      Criado só por uma ação explícita da equipe de logística ("Iniciar
+      separação" num pedido confirmado) — nunca automaticamente ao
+      confirmar, já que separar é uma ação física real. Progride
+      linearmente: em separação → embalado → despachado → entregue.
+      Transportadora e código de rastreio são campos manuais — nenhuma
+      integração de transportadora está conectada nesta instalação (§49).
+      No despacho, a reserva de estoque feita no envio do pedido (Fase 7)
+      é finalmente convertida em saída real: libera a reserva
+      (`LIBERACAO_RESERVA`) e registra a saída física (`SAIDA`) do mesmo
+      item, mesma transação — sem isso, todo pedido entregue deixaria
+      estoque reservado para sempre sem nunca sair de `quantityOnHand`.
+      Portal do cliente vê o status e a transportadora/rastreio em Meus
+      pedidos.
 - [ ] **Fase 10 — Dashboard executivo + Analytics.**
 - [ ] **Fase 11 — Relatórios.** Exportação CSV/Excel/PDF.
 - [ ] **Fase 12 — Segurança + auditoria avançada.** MFA/2FA, aprovação
