@@ -123,7 +123,17 @@ função.
       mensal de pedidos — sem biblioteca de gráficos (tabelas), e sem
       preencher a evolução mensal artificialmente quando ainda não há
       pedidos reais suficientes.
-- [ ] **Fase 11 — Relatórios.** Exportação CSV/Excel/PDF.
+- [x] **Fase 11 — Relatórios.** Exportação de Estoque e Pedidos
+      (`reports:view`) e Auditoria (`audit:view`, mesma permissão da
+      própria página de Auditoria — exportar nunca abre uma porta mais
+      larga do que visualizar na tela) em CSV real (com BOM UTF-8 para
+      abrir acentuação corretamente no Excel), XLSX real via `exceljs`, e
+      PDF real via `pdfkit` — três bibliotecas escolhidas por não
+      precisarem de binário nativo. Cada relatório busca os dados reais já
+      cadastrados no momento do download; nenhum é gerado a partir de
+      número simulado, e um relatório sem dados (ex.: nenhum pedido ainda)
+      baixa honestamente só o cabeçalho, não uma linha de exemplo
+      inventada.
 - [ ] **Fase 12 — Segurança + auditoria avançada.** MFA/2FA, aprovação
       multi-etapa, rate limiter distribuído.
 - [ ] **Fase 13 — Testes.** Cobertura de integração/E2E dos fluxos

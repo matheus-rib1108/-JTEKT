@@ -49,7 +49,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Operação",
     items: [
       { label: "Logística", href: "/admin/logistica", permission: PERMISSIONS.LOGISTICS_VIEW },
-      { label: "Relatórios", href: "/admin/relatorios", permission: PERMISSIONS.REPORTS_VIEW, phase: "Fase 11" },
+      { label: "Relatórios", href: "/admin/relatorios", permission: PERMISSIONS.REPORTS_VIEW },
       { label: "Analytics", href: "/admin/analytics", permission: PERMISSIONS.ANALYTICS_VIEW },
       { label: "Alertas", href: "/admin/alertas", permission: PERMISSIONS.ALERTS_VIEW },
     ],
