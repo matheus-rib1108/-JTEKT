@@ -227,13 +227,19 @@ export async function confirmOrder(tenantId: string, orderId: string, confirmedB
   });
 }
 
-/** Cancelling releases the reservation (LIBERACAO_RESERVA) for every line,
- * and — since we know exactly how much each line had taken out of
- * commercial exposure — restores quantityAvailableToSell by that same
- * amount (capped at the newly-freed physical stock). Without this, the
- * generic movement-clamp in applyMovementToSnapshot only ever clamps
- * availableToSell DOWN, never back up, so a cancelled order would
- * otherwise permanently understate what's available to sell. */
+/** Cancelling releases the reservation (LIBERACAO_RESERVA) for every line.
+ * Known limitation (see docs/ROADMAP.md): `quantityAvailableToSell` is
+ * never automatically raised back up afterward — only the generic
+ * clamp-DOWN in applyMovementToSnapshot applies here, same as every other
+ * movement type. Auto-restoring it would need to know what the value was
+ * *before* this specific reservation touched it, which nothing records; a
+ * naive "add back the released quantity" undoes the clamp but can overshoot
+ * past whatever an admin had deliberately capped it at (verified while
+ * testing this: a product with slack between availableToSell and free
+ * stock before the reservation ends up exposed for *more* than it started
+ * with). Understating is the safe default — never oversells, and any admin
+ * can correct it immediately via "Disponibilidade comercial" on the
+ * product page. */
 export async function cancelOrder(
   tenantId: string,
   orderId: string,
@@ -260,9 +266,6 @@ export async function cancelOrder(
         if (error instanceof InventoryError) throw new OrderError(error.message);
         throw error;
       }
-
-      const freeStockAfter = after.quantityOnHand - after.quantityReserved - after.quantityBlocked;
-      after.quantityAvailableToSell = Math.min(freeStockAfter, before.quantityAvailableToSell + item.quantity);
 
       await tx.inventory.upsert({
         where: { productId: item.productId },

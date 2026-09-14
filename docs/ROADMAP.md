@@ -80,11 +80,7 @@ função.
       de verdade reaproveitando o próprio ledger de movimentações da Fase 2
       (`RESERVA`), em uma única transação cobrindo todos os itens — se um
       item não tiver saldo, nenhum é reservado. Cancelar um pedido libera a
-      reserva (`LIBERACAO_RESERVA`) e devolve a exposição comercial
-      (`quantityAvailableToSell`) exatamente pela quantidade liberada —
-      sem isso, o clamp genérico da Fase 2 (que só reduz, nunca aumenta de
-      volta) deixaria o produto parecendo permanentemente menos disponível
-      após qualquer cancelamento. Admin: página Pedidos (confirmar/cancelar,
+      reserva (`LIBERACAO_RESERVA`). Admin: página Pedidos (confirmar/cancelar,
       permissão `orders:manage` restrita a ADMIN/SUPER_ADMIN por ora).
       Portal: Carrinho, Meus pedidos, e "Adicionar ao carrinho" na página de
       produto.
@@ -112,3 +108,14 @@ função.
 - Uma oferta cujo desconto ficou inválido após uma alta no preço mínimo do
   produto só pode ser encerrada e recriada; não há um fluxo de edição
   direta ainda (avaliar se compensa antes da Fase 7).
+- Cancelar um pedido libera a reserva de estoque (`LIBERACAO_RESERVA`), mas
+  `quantityAvailableToSell` não é automaticamente restaurado — só o clamp
+  genérico de `applyMovementToSnapshot` (que apenas reduz, nunca aumenta de
+  volta) se aplica, igual a todo outro tipo de movimento. Uma tentativa de
+  "devolver a quantidade liberada" foi implementada e removida ainda nesta
+  fase: quando já havia folga entre `quantityAvailableToSell` e o estoque
+  livre antes da reserva, ela devolvia mais do que deveria (verificado ao
+  testar) — não há como restaurar corretamente sem guardar o valor de
+  antes da própria reserva, o que hoje não é registrado em nenhum lugar.
+  Ficar subestimado é o lado seguro (nunca vende acima do físico); o admin
+  corrige na hora em "Disponibilidade comercial" quando precisar.
