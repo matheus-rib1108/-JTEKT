@@ -40,6 +40,7 @@ model Tenant {
   alerts            Alert[]
   offers            Offer[]
   orders            Order[]
+  quotes            Quote[]
 
   @@map("tenants")
 }
@@ -77,6 +78,7 @@ model CustomerCompany {
 
   users  User[]
   orders Order[]
+  quotes Quote[]
 
   @@unique([tenantId, cnpj])
   @@index([tenantId])
@@ -141,6 +143,8 @@ model User {
   ordersCreated       Order[]              @relation("OrderCreatedBy")
   ordersConfirmed     Order[]              @relation("OrderConfirmedBy")
   ordersCancelled     Order[]              @relation("OrderCancelledBy")
+  quotesCreated       Quote[]              @relation("QuoteCreatedBy")
+  quotesResponded     Quote[]              @relation("QuoteRespondedBy")
 
   @@unique([tenantId, email])
   @@index([customerCompanyId])
@@ -363,6 +367,7 @@ model Product {
   pricing            ProductPricing?
   offers             Offer[]
   orderItems         OrderItem[]
+  quoteItems         QuoteItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -778,6 +783,7 @@ model Order {
   cancellationReason  String?
 
   items OrderItem[]
+  quote Quote?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -791,6 +797,7 @@ enum OrderItemDiscountSource {
   NONE
   TIER
   OFFER
+  QUOTE
 }
 
 /// `unitPrice`/`listPriceUnitPrice` are a snapshot taken when the item was
@@ -818,4 +825,81 @@ model OrderItem {
 
   @@unique([orderId, productId])
   @@map("order_items")
+}
+
+// ---------------------------------------------------------------------------
+// Quotes / negotiation (Phase 8)
+// ---------------------------------------------------------------------------
+
+enum QuoteStatus {
+  REQUESTED
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+/// A client's request for a special negotiated price on one or more
+/// products (§29 "negociação e proposta"). Accepting a PROPOSED quote
+/// creates an Order directly (skipping the cart) at the proposed prices —
+/// see src/server/quotes/engine.ts.
+model Quote {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  customerCompanyId String
+  customerCompany   CustomerCompany @relation(fields: [customerCompanyId], references: [id], onDelete: Cascade)
+
+  status QuoteStatus @default(REQUESTED)
+
+  message         String?
+  responseMessage String?
+
+  createdByUserId String?
+  createdBy       User?   @relation("QuoteCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  respondedByUserId String?
+  respondedBy       User?     @relation("QuoteRespondedBy", fields: [respondedByUserId], references: [id], onDelete: SetNull)
+  respondedAt       DateTime?
+
+  decidedAt       DateTime?
+  resultingOrderId String?   @unique
+  resultingOrder   Order?    @relation(fields: [resultingOrderId], references: [id], onDelete: SetNull)
+
+  items QuoteItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([customerCompanyId, status])
+  @@map("quotes")
+}
+
+/// `requestedPrice` is the client's own hoped-for price (optional — a
+/// client can just ask for "your best price" without naming one).
+/// `proposedUnitPrice` is the internal team's counter-offer, set only when
+/// the quote moves to PROPOSED. Both are separate from the product's normal
+/// listPrice/tiers — a quote can land anywhere the internal team is willing
+/// to go, as long as it never goes below the product's configured
+/// `minPrice` (checked in src/server/quotes/engine.ts, same floor rule as
+/// pricing/offers — no exception at this point either).
+model QuoteItem {
+  id      String @id @default(cuid())
+  quoteId String
+  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantity          Int
+  requestedPrice    Decimal? @db.Decimal(12, 2)
+  proposedUnitPrice Decimal? @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([quoteId, productId])
+  @@map("quote_items")
 }

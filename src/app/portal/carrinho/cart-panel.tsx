@@ -18,7 +18,11 @@ export interface CartItemView {
   quantity: number;
   unitPrice: number;
   listPriceUnitPrice: number;
-  discountSource: "NONE" | "TIER" | "OFFER";
+  // "QUOTE" only ever appears on Order items created straight from an
+  // accepted quote (src/server/quotes/engine.ts), never on a DRAFT
+  // cart item — included here only so this type stays assignable from
+  // Prisma's OrderItemDiscountSource without a cast.
+  discountSource: "NONE" | "TIER" | "OFFER" | "QUOTE";
   minCommercialQuantity: number;
 }
 

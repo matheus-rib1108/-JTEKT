@@ -84,7 +84,20 @@ função.
       permissão `orders:manage` restrita a ADMIN/SUPER_ADMIN por ora).
       Portal: Carrinho, Meus pedidos, e "Adicionar ao carrinho" na página de
       produto.
-- [ ] **Fase 8 — Cotações.** `Quote`, `QuoteItem`, negociação e proposta.
+- [x] **Fase 8 — Cotações.** `Quote`, `QuoteItem` (§29 "negociação e
+      proposta"). O cliente solicita uma cotação a partir da página de um
+      produto (quantidade, preço desejado opcional, mensagem); a equipe
+      comercial responde com uma proposta — nunca abaixo do preço mínimo
+      configurado do produto, mesma regra de piso de preços/ofertas, sem
+      exceção nesse ponto (diferente do fluxo de exceção do preço de
+      lista). Aceitar uma proposta pula o carrinho e cria o pedido
+      diretamente no preço negociado, reservando estoque real do mesmo jeito
+      que finalizar o carrinho (`RESERVA`, revalidado contra o estoque atual
+      no momento da aceitação, já que a disponibilidade pode ter mudado
+      desde a proposta). Rejeitar ou cancelar não move estoque. Admin:
+      páginas Cotações (lista + detalhe com formulário de resposta). Portal:
+      página Cotações (aceitar/rejeitar/cancelar) e "Solicitar cotação" na
+      página de produto.
 - [ ] **Fase 9 — Logística.** `Shipment`, status de separação/expedição.
 - [ ] **Fase 10 — Dashboard executivo + Analytics.**
 - [ ] **Fase 11 — Relatórios.** Exportação CSV/Excel/PDF.

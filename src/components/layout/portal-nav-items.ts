@@ -9,7 +9,7 @@ export const PORTAL_NAV: PortalNavItem[] = [
   { label: "Produtos", href: "/portal/produtos" },
   { label: "Ofertas", href: "/portal/ofertas" },
   { label: "Meus pedidos", href: "/portal/pedidos" },
-  { label: "Cotações", href: "/portal/cotacoes", phase: "Fase 8" },
+  { label: "Cotações", href: "/portal/cotacoes" },
   { label: "Carrinho", href: "/portal/carrinho" },
   { label: "Minha empresa", href: "/portal/conta" },
   { label: "Suporte", href: "/portal/suporte", phase: "Fase futura" },

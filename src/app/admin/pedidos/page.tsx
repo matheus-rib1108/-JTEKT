@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/server/db/client";
 import { requirePermission } from "@/server/auth/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -64,7 +65,7 @@ export default async function PedidosPage({
 
       <div className="flex flex-wrap items-center gap-2">
         {(["SUBMITTED", "CONFIRMED", "CANCELLED"] as const).map((status) => (
-          <a
+          <Link
             key={status}
             href={`/admin/pedidos?status=${status}`}
             className={`rounded-[var(--radius-sm)] border px-3 py-1.5 text-[13px] ${
@@ -72,12 +73,12 @@ export default async function PedidosPage({
             }`}
           >
             {STATUS_LABEL[status]}
-          </a>
+          </Link>
         ))}
         {params.status ? (
-          <a href="/admin/pedidos" className="text-[13px] text-text-muted hover:underline">
+          <Link href="/admin/pedidos" className="text-[13px] text-text-muted hover:underline">
             Limpar filtro
-          </a>
+          </Link>
         ) : null}
       </div>
 

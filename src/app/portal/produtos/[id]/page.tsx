@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PERMISSIONS } from "@/lib/permissions";
 import { addProductToCart } from "../../carrinho/actions";
 import { AddToCartForm } from "./add-to-cart-form";
+import { requestProductQuote } from "../../cotacoes/actions";
+import { RequestQuoteForm } from "./request-quote-form";
 
 function formatCurrency(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -125,6 +127,17 @@ export default async function PortalProductDetailPage({ params }: { params: Prom
                 minCommercialQuantity={product.minCommercialQuantity}
                 maxQuantity={product.inventory?.quantityAvailableToSell ?? 0}
                 action={addProductToCart}
+              />
+            </div>
+          ) : null}
+
+          {user.permissions.has(PERMISSIONS.CLIENT_QUOTES_MANAGE) ? (
+            <div className="mt-3">
+              <RequestQuoteForm
+                productId={product.id}
+                unit={product.unit}
+                minCommercialQuantity={product.minCommercialQuantity}
+                action={requestProductQuote}
               />
             </div>
           ) : null}
