@@ -112,7 +112,17 @@ função.
       estoque reservado para sempre sem nunca sair de `quantityOnHand`.
       Portal do cliente vê o status e a transportadora/rastreio em Meus
       pedidos.
-- [ ] **Fase 10 — Dashboard executivo + Analytics.**
+- [x] **Fase 10 — Dashboard executivo + Analytics.** (§42/§19). Dashboard
+      reescrito com KPIs reais: valor total em estoque, estoque excedente
+      (produtos com prioridade de redução ≥ 70), posições fora do padrão,
+      ofertas ativas, margem média (lista vs. custo), pedidos em aberto e
+      economia concedida a clientes — todos calculados a partir de dado já
+      cadastrado, "N/D" em vez de estimativa quando falta custo ou preço.
+      Analytics: valor parado por classe ABC, posições por status,
+      top 10 produtos por valor parado, margem por produto, e evolução
+      mensal de pedidos — sem biblioteca de gráficos (tabelas), e sem
+      preencher a evolução mensal artificialmente quando ainda não há
+      pedidos reais suficientes.
 - [ ] **Fase 11 — Relatórios.** Exportação CSV/Excel/PDF.
 - [ ] **Fase 12 — Segurança + auditoria avançada.** MFA/2FA, aprovação
       multi-etapa, rate limiter distribuído.
