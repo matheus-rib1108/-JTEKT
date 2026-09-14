@@ -35,6 +35,8 @@ model Tenant {
   systemSettings    SystemSetting[]
   categories        Category[]
   products          Product[]
+  warehouses        Warehouse[]
+  storageLocations  StorageLocation[]
 
   @@map("tenants")
 }
@@ -334,10 +336,11 @@ model Product {
   minCommercialQuantity Int           @default(1)
   status                ProductStatus @default(DRAFT)
 
-  images    ProductImage[]
-  documents ProductDocument[]
-  inventory Inventory?
-  movements InventoryMovement[]
+  images             ProductImage[]
+  documents          ProductDocument[]
+  inventory          Inventory?
+  movements          InventoryMovement[]
+  storageAllocations ProductStorageLocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -431,4 +434,97 @@ model InventoryMovement {
 
   @@index([productId, createdAt])
   @@map("inventory_movements")
+}
+
+// ---------------------------------------------------------------------------
+// Warehouse & addressing (Phase 3)
+// ---------------------------------------------------------------------------
+
+/// A physical warehouse ("Galpão", §15). `code` is the first segment of
+/// every position code below it (e.g. "A" in A-03-R12-N04-P08).
+model Warehouse {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  code String
+  name String
+
+  storageLocations StorageLocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, code])
+  @@map("warehouses")
+}
+
+enum StorageLocationStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  BLOCKED
+}
+
+/// One physical slot: Corredor → Rack/Estante → Nível → Posição (§15). `area`
+/// is a free-text descriptive grouping (e.g. "Componentes rotativos") and is
+/// NOT part of the address code, which follows exactly the brief's example
+/// format warehouse.code-corridor-rack-level-position (A-03-R12-N04-P08).
+///
+/// `isNonStandard` is deliberately a separate flag from `status`: whether an
+/// address follows the standard addressing scheme (§17, the "580 positions"
+/// problem) is independent of whether it currently holds stock.
+model StorageLocation {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  area     String?
+  corridor String
+  rack     String
+  level    String
+  position String
+  code     String // computed: `${warehouse.code}-${corridor}-${rack}-${level}-${position}`
+
+  status          StorageLocationStatus @default(AVAILABLE)
+  isNonStandard   Boolean               @default(false)
+  nonStandardNote String?
+  notes           String?
+
+  allocations ProductStorageLocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, code])
+  @@index([tenantId, warehouseId])
+  @@index([tenantId, isNonStandard])
+  @@index([tenantId, status])
+  @@map("storage_locations")
+}
+
+/// How much of a product's on-hand stock sits at a given position. The sum
+/// across a product's allocations is validated against
+/// Inventory.quantityOnHand in src/server/warehouse/engine.ts — this table
+/// is a breakdown of that quantity, never an independent count.
+model ProductStorageLocation {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  storageLocationId String
+  storageLocation   StorageLocation @relation(fields: [storageLocationId], references: [id], onDelete: Cascade)
+
+  quantity Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, storageLocationId])
+  @@index([storageLocationId])
+  @@map("product_storage_locations")
 }

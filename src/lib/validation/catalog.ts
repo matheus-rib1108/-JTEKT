@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { optionalText } from "@/lib/validation/shared";
 
 export const categorySchema = z.object({
   name: z.string().trim().min(2).max(150),
-  description: z.string().trim().max(500).optional().or(z.literal("")),
-  parentId: z.string().trim().optional().or(z.literal("")),
+  description: optionalText(500),
+  parentId: optionalText(200),
 });
 export type CategoryInput = z.infer<typeof categorySchema>;
 
@@ -26,10 +27,10 @@ export const productSchema = z.object({
     .max(50)
     .regex(/^[A-Z0-9._-]+$/, "Use apenas letras, números, ponto, hífen e underscore."),
   name: z.string().trim().min(2).max(200),
-  description: z.string().trim().max(2000).optional().or(z.literal("")),
-  categoryId: z.string().trim().optional().or(z.literal("")),
-  manufacturer: z.string().trim().max(150).optional().or(z.literal("")),
-  model: z.string().trim().max(150).optional().or(z.literal("")),
+  description: optionalText(2000),
+  categoryId: optionalText(200),
+  manufacturer: optionalText(150),
+  model: optionalText(150),
   unit: z.string().trim().min(1).max(10).default("UN"),
   minCommercialQuantity: z.coerce.number().int().min(1).max(1_000_000),
   status: z.enum(productStatusValues),
@@ -64,7 +65,7 @@ export const movementSchema = z
     productId: z.string().min(1),
     type: z.enum(movementTypeValues),
     quantity: z.coerce.number().int(),
-    reason: z.string().trim().max(300).optional().or(z.literal("")),
+    reason: optionalText(300),
   })
   .superRefine((data, ctx) => {
     if (data.quantity === 0) {

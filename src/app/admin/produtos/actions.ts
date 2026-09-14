@@ -7,9 +7,11 @@ import { prisma } from "@/server/db/client";
 import { requirePermission } from "@/server/auth/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 import { productSchema, movementSchema, inventorySettingsSchema } from "@/lib/validation/catalog";
+import { allocationSchema } from "@/lib/validation/warehouse";
 import { writeAuditLog } from "@/server/audit/log";
 import { getRequestIp } from "@/server/http/ip";
 import { registerMovement, updateCommercialAvailability, InventoryError } from "@/server/inventory/engine";
+import { allocateProduct, WarehouseError } from "@/server/warehouse/engine";
 import type { Prisma } from "@prisma/client";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -220,6 +222,44 @@ export async function updateProductAvailability(formData: FormData): Promise<Act
   }
 
   revalidatePath(`/admin/produtos/${data.productId}`);
+  revalidatePath("/admin/estoque");
+  return { ok: true };
+}
+
+export async function allocateProductToLocation(formData: FormData): Promise<ActionResult> {
+  const auth = await requirePermission(PERMISSIONS.WAREHOUSE_MANAGE);
+  if (!auth.user) return { ok: false, error: "Não autorizado." };
+
+  const parsed = allocationSchema.safeParse({
+    productId: formData.get("productId"),
+    storageLocationId: formData.get("storageLocationId"),
+    quantity: formData.get("quantity"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+  const data = parsed.data;
+
+  try {
+    const result = await allocateProduct({ tenantId: auth.user.tenantId, ...data });
+
+    await writeAuditLog({
+      tenantId: auth.user.tenantId,
+      actorUserId: auth.user.id,
+      action: "product.storage_allocation.update",
+      entityType: "Product",
+      entityId: data.productId,
+      ipAddress: await ipFromHeaders(),
+      beforeData: { code: result.code, quantity: result.previousQuantity } as Prisma.InputJsonObject,
+      afterData: { code: result.code, quantity: result.newQuantity } as Prisma.InputJsonObject,
+    });
+  } catch (error) {
+    if (error instanceof WarehouseError) return { ok: false, error: error.message };
+    throw error;
+  }
+
+  revalidatePath(`/admin/produtos/${data.productId}`);
+  revalidatePath("/admin/armazem");
   revalidatePath("/admin/estoque");
   return { ok: true };
 }

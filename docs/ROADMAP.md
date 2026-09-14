@@ -16,9 +16,14 @@ função.
       ledger append-only, separação estoque interno × comercial (§9), e
       consulta de catálogo no portal do cliente (só o que a Fase 5
       completa: cotação/carrinho/pedido, ainda faltam).
-- [ ] **Fase 3 — Armazém + posições.** `Warehouse`, `WarehouseArea`,
-      `StorageLocation`, endereçamento (`A-03-R12-N04-P08`), mapa visual,
-      indicador de posições fora do padrão.
+- [x] **Fase 3 — Armazém + posições.** `Warehouse`, `StorageLocation`,
+      `ProductStorageLocation`. Endereçamento físico (`A-03-R12-N04-P08`,
+      gerado em lote por corredor/rack), mapa visual clicável por posição
+      (status derivado da alocação — nunca setado à mão para
+      disponível/ocupada), alocação de produto por posição com limite
+      contra o estoque em mãos, e o indicador de posições fora do padrão
+      (§17) com meta configurável, progresso e histórico de correções via
+      auditoria.
 - [ ] **Fase 4 — ABC/XYZ + Smart Stock Engine.** Classificação automática,
       índice de prioridade de redução, pesos configuráveis, central de
       alertas.

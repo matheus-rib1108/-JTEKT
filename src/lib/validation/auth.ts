@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { optionalText } from "@/lib/validation/shared";
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email("Informe um e-mail válido."),
@@ -15,13 +16,13 @@ const passwordField = z
 
 export const registerCompanySchema = z.object({
   companyLegalName: z.string().trim().min(2).max(200),
-  companyTradeName: z.string().trim().max(200).optional().or(z.literal("")),
+  companyTradeName: optionalText(200),
   cnpj: z
     .string()
     .trim()
     .transform((v) => v.replace(/\D/g, ""))
     .refine((v) => v.length === 14, { message: "CNPJ deve ter 14 dígitos." }),
-  phone: z.string().trim().max(30).optional().or(z.literal("")),
+  phone: optionalText(30),
   adminName: z.string().trim().min(2).max(150),
   adminEmail: z.string().trim().toLowerCase().email("Informe um e-mail válido."),
   password: passwordField,

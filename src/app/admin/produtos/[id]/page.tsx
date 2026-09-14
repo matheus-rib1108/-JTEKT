@@ -10,6 +10,7 @@ import { ProductForm } from "../product-form";
 import { updateProduct } from "../actions";
 import { MovementForm } from "./movement-form";
 import { AvailabilityForm } from "./availability-form";
+import { AllocationForm } from "./allocation-form";
 
 const STATUS_LABEL = { DRAFT: "Rascunho", ACTIVE: "Ativo", DISCONTINUED: "Descontinuado" } as const;
 const MOVEMENT_LABEL: Record<string, string> = {
@@ -29,8 +30,9 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const canManageProduct = auth.user.permissions.has(PERMISSIONS.PRODUCTS_MANAGE);
   const canManageInventory = auth.user.permissions.has(PERMISSIONS.INVENTORY_MANAGE);
+  const canManageWarehouse = auth.user.permissions.has(PERMISSIONS.WAREHOUSE_MANAGE);
 
-  const [product, categories] = await Promise.all([
+  const [product, categories, availableLocations] = await Promise.all([
     prisma.product.findFirst({
       where: { id, tenantId: auth.user.tenantId },
       include: {
@@ -41,9 +43,18 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
           take: 20,
           include: { performedBy: { select: { name: true } } },
         },
+        storageAllocations: {
+          include: { storageLocation: { include: { warehouse: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     }),
     prisma.category.findMany({ where: { tenantId: auth.user.tenantId }, orderBy: { name: "asc" } }),
+    prisma.storageLocation.findMany({
+      where: { tenantId: auth.user.tenantId },
+      orderBy: [{ corridor: "asc" }, { rack: "asc" }, { level: "asc" }, { position: "asc" }],
+      select: { id: true, code: true },
+    }),
   ]);
 
   if (!product) notFound();
@@ -202,6 +213,36 @@ export default async function ProdutoDetailPage({ params }: { params: Promise<{ 
               </tbody>
             </table>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Posições no armazém</CardTitle>
+          <CardDescription>Onde este produto está fisicamente alocado (§15).</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {product.storageAllocations.length === 0 ? (
+            <p className="text-[13px] text-text-muted">Nenhuma posição alocada para este produto ainda.</p>
+          ) : (
+            <ul className="divide-y divide-border-subtle">
+              {product.storageAllocations.map((allocation) => (
+                <li key={allocation.id} className="flex items-center justify-between py-2 text-[13px]">
+                  <span className="font-tabular font-medium text-foreground">
+                    {allocation.storageLocation.code}
+                  </span>
+                  <span className="text-text-muted">{allocation.storageLocation.warehouse.name}</span>
+                  <span className="font-tabular font-medium text-foreground">{allocation.quantity} un.</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {canManageWarehouse ? (
+            <div className="border-t border-border-subtle pt-4">
+              <AllocationForm productId={product.id} locations={availableLocations} />
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>

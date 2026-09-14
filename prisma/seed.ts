@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { ALL_PERMISSIONS, ROLE_DEFINITIONS, type RoleKey } from "../src/lib/permissions";
+import { NON_STANDARD_BASELINE_KEY } from "../src/lib/warehouse-constants";
 
 const prisma = new PrismaClient();
 
@@ -79,6 +80,7 @@ async function main() {
   }
 
   await seedDemoCatalog(tenant.id, adminUser.id);
+  await seedDemoWarehouse(tenant.id, adminUser.id);
 
   console.log("Seed completed.");
 }
@@ -339,6 +341,139 @@ async function seedDemoCatalog(tenantId: string, performedById: string) {
       },
     });
   }
+}
+
+/**
+ * Demo warehouse addressing (§15/§17). Inserted directly via Prisma for the
+ * same reason as seedDemoCatalog: src/server/warehouse/engine.ts imports
+ * "server-only", which only resolves under Next.js's bundler.
+ */
+async function seedDemoWarehouse(tenantId: string, performedById: string) {
+  console.log("Seeding demo warehouse and positions...");
+
+  const existingWarehouse = await prisma.warehouse.findUnique({
+    where: { tenantId_code: { tenantId, code: "A" } },
+  });
+  if (existingWarehouse) {
+    console.log("Demo warehouse already exists, skipping.");
+    return;
+  }
+
+  const warehouse = await prisma.warehouse.create({
+    data: { tenantId, code: "A", name: "Galpão A" },
+  });
+
+  interface RackDef {
+    corridor: string;
+    rack: string;
+    area: string;
+    levelCount: number;
+    positionsPerLevel: number;
+  }
+
+  const racks: RackDef[] = [
+    { corridor: "03", rack: "R12", area: "Rolamentos e correias", levelCount: 4, positionsPerLevel: 8 },
+    { corridor: "05", rack: "R20", area: "Vedação e retentores", levelCount: 2, positionsPerLevel: 6 },
+  ];
+
+  const locationByCode = new Map<string, string>(); // code -> id
+
+  for (const rackDef of racks) {
+    for (let levelIndex = 1; levelIndex <= rackDef.levelCount; levelIndex += 1) {
+      const level = `N${String(levelIndex).padStart(2, "0")}`;
+      for (let positionIndex = 1; positionIndex <= rackDef.positionsPerLevel; positionIndex += 1) {
+        const position = `P${String(positionIndex).padStart(2, "0")}`;
+        const code = `${warehouse.code}-${rackDef.corridor}-${rackDef.rack}-${level}-${position}`;
+
+        const location = await prisma.storageLocation.create({
+          data: {
+            tenantId,
+            warehouseId: warehouse.id,
+            area: rackDef.area,
+            corridor: rackDef.corridor,
+            rack: rackDef.rack,
+            level,
+            position,
+            code,
+          },
+        });
+        locationByCode.set(code, location.id);
+      }
+    }
+  }
+
+  console.log(`Created ${locationByCode.size} demo positions.`);
+
+  // Allocate part of the already-seeded demo catalog's stock to specific
+  // positions — deliberately partial, since not everything has been mapped
+  // to a formal address yet (that incompleteness is the point of §17).
+  const allocations: { sku: string; code: string; quantity: number }[] = [
+    { sku: "RLM-6205-2RS", code: "A-03-R12-N01-P01", quantity: 300 },
+    { sku: "RLM-6205-2RS", code: "A-03-R12-N01-P02", quantity: 50 },
+    { sku: "RLM-6304-2RS", code: "A-03-R12-N02-P01", quantity: 40 },
+    { sku: "ROL-CONICO-30206", code: "A-03-R12-N02-P02", quantity: 12 },
+    { sku: "ROL-ESF-6006", code: "A-03-R12-N03-P01", quantity: 400 },
+    { sku: "COR-A-1200", code: "A-03-R12-N04-P01", quantity: 150 },
+    { sku: "COR-B-1500", code: "A-03-R12-N04-P02", quantity: 90 },
+    { sku: "RET-25X40X7", code: "A-05-R20-N01-P01", quantity: 700 },
+    { sku: "RET-40X60X10", code: "A-05-R20-N01-P02", quantity: 280 },
+  ];
+
+  const occupiedLocationIds = new Set<string>();
+
+  for (const allocation of allocations) {
+    const product = await prisma.product.findUnique({
+      where: { tenantId_sku: { tenantId, sku: allocation.sku } },
+    });
+    const storageLocationId = locationByCode.get(allocation.code);
+    if (!product || !storageLocationId) continue;
+
+    await prisma.productStorageLocation.create({
+      data: { productId: product.id, storageLocationId, quantity: allocation.quantity },
+    });
+    occupiedLocationIds.add(storageLocationId);
+  }
+
+  await prisma.storageLocation.updateMany({
+    where: { id: { in: Array.from(occupiedLocationIds) } },
+    data: { status: "OCCUPIED" },
+  });
+
+  // A handful of positions flagged as not following the formal addressing
+  // scheme yet — independent of whether they hold stock (§17's "580
+  // positions" problem, at demo scale).
+  const nonStandardCodes = [
+    "A-03-R12-N01-P03",
+    "A-03-R12-N01-P04",
+    "A-03-R12-N02-P03",
+    "A-03-R12-N02-P04",
+    "A-05-R20-N02-P01",
+    "A-05-R20-N02-P02",
+  ];
+  const nonStandardIds = nonStandardCodes
+    .map((code) => locationByCode.get(code))
+    .filter((id): id is string => Boolean(id));
+
+  await prisma.storageLocation.updateMany({
+    where: { id: { in: nonStandardIds } },
+    data: {
+      isNonStandard: true,
+      nonStandardNote: "Identificada na auditoria inicial de endereçamento (dados de demonstração).",
+    },
+  });
+
+  await prisma.systemSetting.upsert({
+    where: { tenantId_key: { tenantId, key: NON_STANDARD_BASELINE_KEY } },
+    update: {},
+    create: {
+      tenantId,
+      key: NON_STANDARD_BASELINE_KEY,
+      value: { count: nonStandardIds.length, setAt: new Date().toISOString() },
+      updatedById: performedById,
+    },
+  });
+
+  console.log(`Marked ${nonStandardIds.length} positions as non-standard and set baseline.`);
 }
 
 main()
