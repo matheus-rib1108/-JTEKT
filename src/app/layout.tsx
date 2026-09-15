@@ -18,13 +18,22 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+const description =
+  "Plataforma B2B para gestão, redistribuição e comercialização de estoque empresarial.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   title: {
     default: "StockFlow B2B",
     template: "%s",
   },
-  description:
-    "Plataforma B2B para gestão, redistribuição e comercialização de estoque empresarial.",
+  description,
+  openGraph: {
+    title: "StockFlow B2B",
+    description,
+    type: "website",
+    locale: "pt_BR",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
