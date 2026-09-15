@@ -182,13 +182,55 @@ função.
       de verdade a cada rodada — esperado (é o ponto do teste), mas uma
       suíte de CI que rode isso com frequência precisa re-semear o banco
       entre execuções, não compartilhar um banco que só diminui.
-- [ ] **Fase 14 — Performance.**
+- [x] **Fase 14 — Performance.** Auditoria dirigida a padrões de uso real
+      (não otimização especulativa), com achados verificados linha a linha
+      antes de qualquer mudança:
+      1. `getCurrentUser()`/`getSessionByRawToken` (o join Session → User →
+         Role → RolePermission → Permission mais pesado da aplicação)
+         agora usam `cache()` do React — antes rodava 2-3x por requisição
+         (layout + cada página chamando `requirePermission` de novo),
+         agora no máximo uma vez por requisição.
+      2. Índices que faltavam para colunas realmente filtradas/ordenadas:
+         `Product` (`manufacturer`, `application` — usadas em `where`,
+         `distinct` e `orderBy` em toda visita ao catálogo, admin e portal)
+         e `LoginAttempt.ipAddress` (o próprio caminho quente do rate
+         limiter por IP, sem índice até agora).
+      3. `take` adicionado em listagens sem limite que crescem com o
+         catálogo/histórico (`admin/estoque`, `admin/ofertas`,
+         `admin/clientes`, `portal/ofertas`, `portal/cotacoes`) — e as
+         consultas de pedidos em Dashboard/Analytics tiveram o `include`
+         trocado por `select` mínimo (só os campos usados no cálculo),
+         reduzindo o volume de dados sem mudar o que "histórico completo"
+         de fato promete na tela (decidido não limitar essas duas por data,
+         já que os rótulos afirmam explicitamente ser o histórico
+         completo).
+      4. Duas varreduras sequenciais (`runSmartStockEngine`/`generateAlerts`
+         em `src/server/analytics/engine.ts`, um upsert por produto/alerta
+         em loop `await`) agora disparam com `Promise.all` em vez de uma
+         chamada por vez.
+      5. `bulkGeneratePositions` (`src/server/warehouse/engine.ts`) fazia um
+         `findUnique` + `create` por posição dentro do loop; reescrito para
+         um único `findMany` (códigos já existentes) seguido de um único
+         `createMany` — testado manualmente (gerar 6 posições novas, depois
+         gerar o mesmo lote de novo confirmando "0 criadas, 6 já existiam").
+      Deliberadamente fora do escopo desta fase (custo/risco não valem a
+      pena agora, registrado como débito técnico): reescrever os loops
+      `await` por item dentro das transações de `submitOrder`/`cancelOrder`/
+      `markShipped` — são sensíveis a corretude do livro de estoque e só
+      importariam de verdade em pedidos com dezenas de itens, o que não é
+      o perfil atual de uso.
 - [ ] **Fase 15 — Deploy.**
 
 ## Débitos técnicos conhecidos (declarados, não escondidos)
 
 - Rate limiting hoje é por banco de dados; sob múltiplas instâncias, migrar
   para um contador compartilhado (Redis).
+- `submitOrder`/`cancelOrder` (`src/server/orders/engine.ts`) e
+  `markShipped` (`src/server/logistics/engine.ts`) escrevem a reserva/saída
+  de cada item do pedido em um loop `await` sequencial dentro da própria
+  transação — corretude do livro de estoque prevalece sobre paralelizar
+  aqui (Fase 14); só passa a valer a pena revisitar se pedidos com dezenas
+  de itens de linha se tornarem comuns.
 - Login resolve o e-mail sem seletor de tenant — correto enquanto existir
   um único tenant; precisa de resolução por subdomínio/seletor antes do
   segundo tenant entrar em operação (§37).

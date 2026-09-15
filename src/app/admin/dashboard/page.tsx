@@ -46,7 +46,10 @@ export default async function AdminDashboardPage() {
     prisma.order.count({ where: { tenantId: user.tenantId, status: { in: ["SUBMITTED", "CONFIRMED"] } } }),
     prisma.order.findMany({
       where: { tenantId: user.tenantId, status: { in: ["SUBMITTED", "CONFIRMED", "CANCELLED"] } },
-      include: { items: true },
+      select: {
+        status: true,
+        items: { select: { quantity: true, unitPrice: true, listPriceUnitPrice: true } },
+      },
     }),
     prisma.product.findMany({
       where: { tenantId: user.tenantId, status: "ACTIVE", unitCost: { not: null }, pricing: { isNot: null } },

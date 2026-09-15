@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { getSessionByRawToken, SESSION_COOKIE_NAME } from "@/server/auth/session";
 import type { PermissionKey } from "@/lib/permissions";
@@ -20,7 +21,13 @@ export interface AuthenticatedUser {
  * This is the ONLY function server code should trust for identity; never
  * infer the user from a client-supplied field.
  */
-export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+/** `cache()`-wrapped so the Session -> User -> Role -> RolePermission ->
+ * Permission join runs at most once per request: the admin/portal layouts
+ * call this, and every page under them calls it again via
+ * requirePermission — without caching that's 2-3 identical DB round trips
+ * for the same request. React's per-request cache scope makes this safe
+ * (never leaks across requests/users). */
+export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> => {
   const cookieStore = await cookies();
   const rawToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (!rawToken) return null;
@@ -42,7 +49,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     roleKey: session.user.role.key,
     permissions,
   };
-}
+});
 
 export function hasPermission(user: AuthenticatedUser, permission: PermissionKey): boolean {
   return user.permissions.has(permission);

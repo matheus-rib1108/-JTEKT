@@ -39,6 +39,7 @@ export default async function PortalCotacoesPage() {
     where: { tenantId: user.tenantId, customerCompanyId: user.customerCompanyId },
     include: { items: { include: { product: { select: { name: true, sku: true, unit: true } } } } },
     orderBy: { createdAt: "desc" },
+    take: 200,
   });
 
   return (

@@ -42,6 +42,7 @@ export default async function OfertasPage() {
       where: { tenantId: auth.user.tenantId },
       include: { product: { include: { pricing: true } } },
       orderBy: { createdAt: "desc" },
+      take: 500,
     }),
     prisma.product.findMany({
       where: {
@@ -52,6 +53,7 @@ export default async function OfertasPage() {
       },
       include: { pricing: true, inventory: true },
       orderBy: { name: "asc" },
+      take: 500,
     }),
   ]);
 

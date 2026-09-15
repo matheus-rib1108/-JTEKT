@@ -87,58 +87,59 @@ export async function runSmartStockEngine(tenantId: string): Promise<RunSummary>
     }));
   const abcByProduct = computeABC(abcInputs);
 
-  let productsClassified = 0;
-  for (const product of products) {
-    if (!product.inventory) continue;
-
-    const consumptionByMonth = new Map(monthKeys.map((k) => [k, 0]));
-    for (const movement of product.movements) {
-      const key = monthKey(movement.createdAt);
-      if (consumptionByMonth.has(key)) {
-        consumptionByMonth.set(key, (consumptionByMonth.get(key) ?? 0) + movement.quantity);
+  // Compute every product's classification first (pure, no I/O), then fire
+  // all the upserts concurrently instead of one sequential round trip per
+  // product — a tenant with a large catalog would otherwise turn a single
+  // "recalcular" click into thousands of serial DB round trips.
+  const classificationWrites = products
+    .filter((product) => product.inventory !== null)
+    .map((product) => {
+      const consumptionByMonth = new Map(monthKeys.map((k) => [k, 0]));
+      for (const movement of product.movements) {
+        const key = monthKey(movement.createdAt);
+        if (consumptionByMonth.has(key)) {
+          consumptionByMonth.set(key, (consumptionByMonth.get(key) ?? 0) + movement.quantity);
+        }
       }
-    }
-    const periodConsumption = monthKeys.map((k) => consumptionByMonth.get(k) ?? 0);
-    const totalConsumption = periodConsumption.reduce((s, v) => s + v, 0);
-    const avgMonthlyConsumption = totalConsumption / CONSUMPTION_WINDOW_MONTHS;
+      const periodConsumption = monthKeys.map((k) => consumptionByMonth.get(k) ?? 0);
+      const totalConsumption = periodConsumption.reduce((s, v) => s + v, 0);
+      const avgMonthlyConsumption = totalConsumption / CONSUMPTION_WINDOW_MONTHS;
 
-    const coverageDays =
-      avgMonthlyConsumption > 0 ? product.inventory.quantityOnHand / (avgMonthlyConsumption / 30) : null;
+      const coverageDays =
+        avgMonthlyConsumption > 0 ? product.inventory!.quantityOnHand / (avgMonthlyConsumption / 30) : null;
 
-    const daysSinceLastMovement = product.inventory.lastMovementAt
-      ? daysBetween(product.inventory.lastMovementAt, now)
-      : null;
+      const daysSinceLastMovement = product.inventory!.lastMovementAt
+        ? daysBetween(product.inventory!.lastMovementAt, now)
+        : null;
 
-    const occupiedPositions = product.storageAllocations.length;
-    const valueTied = product.unitCost !== null ? product.inventory.quantityOnHand * Number(product.unitCost) : null;
-    const abcClass: AbcClass | null = abcByProduct.get(product.id) ?? null;
-    const xyzClass = computeXYZ(periodConsumption);
+      const occupiedPositions = product.storageAllocations.length;
+      const valueTied =
+        product.unitCost !== null ? product.inventory!.quantityOnHand * Number(product.unitCost) : null;
+      const abcClass: AbcClass | null = abcByProduct.get(product.id) ?? null;
+      const xyzClass = computeXYZ(periodConsumption);
 
-    const priority = computePriorityScore(
-      { coverageDays, daysSinceLastMovement, occupiedPositions, valueTied, abcClass },
-      weights,
-    );
+      const priority = computePriorityScore(
+        { coverageDays, daysSinceLastMovement, occupiedPositions, valueTied, abcClass },
+        weights,
+      );
 
-    await prisma.stockClassification.upsert({
-      where: { productId: product.id },
-      create: {
-        productId: product.id,
+      const data = {
         abcClass,
         xyzClass,
         priorityScore: priority.score,
         factors: { ...priority.factors, periodConsumption, monthKeys } as unknown as Prisma.InputJsonObject,
         computedAt: now,
-      },
-      update: {
-        abcClass,
-        xyzClass,
-        priorityScore: priority.score,
-        factors: { ...priority.factors, periodConsumption, monthKeys } as unknown as Prisma.InputJsonObject,
-        computedAt: now,
-      },
+      };
+
+      return prisma.stockClassification.upsert({
+        where: { productId: product.id },
+        create: { productId: product.id, ...data },
+        update: data,
+      });
     });
-    productsClassified += 1;
-  }
+
+  await Promise.all(classificationWrites);
+  const productsClassified = classificationWrites.length;
 
   const alertResult = await generateAlerts(tenantId, products, now);
 
@@ -252,31 +253,34 @@ async function generateAlerts(
     });
   }
 
-  let alertsOpened = 0;
-  for (const d of desired) {
-    const result = await prisma.alert.upsert({
-      where: { tenantId_type_targetKey: { tenantId, type: d.type, targetKey: d.targetKey } },
-      create: {
-        tenantId,
-        type: d.type,
-        targetKey: d.targetKey,
-        severity: d.severity,
-        productId: d.productId,
-        storageLocationId: d.storageLocationId,
-        message: d.message,
-        details: d.details,
-        status: "OPEN",
-      },
-      update: {
-        severity: d.severity,
-        message: d.message,
-        details: d.details,
-        status: "OPEN",
-        resolvedAt: null,
-      },
-    });
-    if (result.createdAt.getTime() === result.updatedAt.getTime()) alertsOpened += 1;
-  }
+  // Same reasoning as the classification writes above: fire every alert
+  // upsert concurrently rather than one sequential round trip per alert.
+  const alertResults = await Promise.all(
+    desired.map((d) =>
+      prisma.alert.upsert({
+        where: { tenantId_type_targetKey: { tenantId, type: d.type, targetKey: d.targetKey } },
+        create: {
+          tenantId,
+          type: d.type,
+          targetKey: d.targetKey,
+          severity: d.severity,
+          productId: d.productId,
+          storageLocationId: d.storageLocationId,
+          message: d.message,
+          details: d.details,
+          status: "OPEN",
+        },
+        update: {
+          severity: d.severity,
+          message: d.message,
+          details: d.details,
+          status: "OPEN",
+          resolvedAt: null,
+        },
+      }),
+    ),
+  );
+  const alertsOpened = alertResults.filter((r) => r.createdAt.getTime() === r.updatedAt.getTime()).length;
 
   return { alertsOpened, alertsResolved: toResolve.length };
 }

@@ -266,6 +266,7 @@ model LoginAttempt {
   createdAt  DateTime @default(now())
 
   @@index([identifier, createdAt])
+  @@index([ipAddress, createdAt])
   @@map("login_attempts")
 }
 
@@ -404,6 +405,8 @@ model Product {
   @@unique([tenantId, sku])
   @@index([tenantId, categoryId])
   @@index([tenantId, status])
+  @@index([tenantId, manufacturer])
+  @@index([tenantId, application])
   @@map("products")
 }
 

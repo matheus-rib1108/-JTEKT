@@ -29,6 +29,7 @@ export default async function EstoquePage({
     where: { tenantId: auth.user.tenantId, status: { not: "DISCONTINUED" } },
     include: { inventory: true, category: true, classification: true },
     orderBy: { name: "asc" },
+    take: 2000,
   });
 
   const filtered = products.filter((p) => {

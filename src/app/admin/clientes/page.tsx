@@ -30,6 +30,7 @@ export default async function ClientesPage() {
     where: { tenantId: auth.user.tenantId },
     orderBy: { createdAt: "desc" },
     include: { users: { where: { userType: "CLIENT" }, take: 1 } },
+    take: 500,
   });
 
   const canManage = auth.user.permissions.has(PERMISSIONS.CUSTOMERS_MANAGE);

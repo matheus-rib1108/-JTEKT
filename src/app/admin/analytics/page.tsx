@@ -33,7 +33,11 @@ export default async function AnalyticsPage() {
     }),
     prisma.order.findMany({
       where: { tenantId: auth.user.tenantId, status: { in: ["SUBMITTED", "CONFIRMED", "CANCELLED"] } },
-      include: { items: true },
+      select: {
+        status: true,
+        submittedAt: true,
+        items: { select: { quantity: true, unitPrice: true, listPriceUnitPrice: true } },
+      },
       orderBy: { submittedAt: "asc" },
     }),
   ]);

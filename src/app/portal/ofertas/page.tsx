@@ -37,6 +37,7 @@ export default async function PortalOfertasPage() {
       },
     },
     orderBy: { createdAt: "desc" },
+    take: 200,
   });
 
   return (

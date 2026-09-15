@@ -184,38 +184,41 @@ export async function bulkGeneratePositions(input: BulkGenerateInput): Promise<{
   });
   if (!warehouse) throw new WarehouseError("Galpão não encontrado.");
 
-  let created = 0;
-  let skipped = 0;
-
+  // Build every candidate slot in memory first, then a single findMany +
+  // single createMany — a rack of any real size (e.g. 4 levels x 20
+  // positions = 80 slots) would otherwise cost up to two sequential DB
+  // round trips per slot (one findUnique, one create).
+  const candidates: { level: string; position: string; code: string }[] = [];
   for (let levelIndex = 1; levelIndex <= input.levelCount; levelIndex += 1) {
     const level = `N${String(levelIndex).padStart(2, "0")}`;
     for (let positionIndex = 1; positionIndex <= input.positionsPerLevel; positionIndex += 1) {
       const position = `P${String(positionIndex).padStart(2, "0")}`;
-      const code = buildLocationCode(warehouse.code, input.corridor, input.rack, level, position);
-
-      const existing = await prisma.storageLocation.findUnique({
-        where: { tenantId_code: { tenantId: input.tenantId, code } },
-      });
-      if (existing) {
-        skipped += 1;
-        continue;
-      }
-
-      await prisma.storageLocation.create({
-        data: {
-          tenantId: input.tenantId,
-          warehouseId: warehouse.id,
-          area: input.area || null,
-          corridor: input.corridor.toUpperCase(),
-          rack: input.rack.toUpperCase(),
-          level,
-          position,
-          code,
-        },
-      });
-      created += 1;
+      candidates.push({ level, position, code: buildLocationCode(warehouse.code, input.corridor, input.rack, level, position) });
     }
   }
 
-  return { created, skipped };
+  const existing = await prisma.storageLocation.findMany({
+    where: { tenantId: input.tenantId, code: { in: candidates.map((c) => c.code) } },
+    select: { code: true },
+  });
+  const existingCodes = new Set(existing.map((e) => e.code));
+
+  const toCreate = candidates.filter((c) => !existingCodes.has(c.code));
+
+  if (toCreate.length > 0) {
+    await prisma.storageLocation.createMany({
+      data: toCreate.map((c) => ({
+        tenantId: input.tenantId,
+        warehouseId: warehouse.id,
+        area: input.area || null,
+        corridor: input.corridor.toUpperCase(),
+        rack: input.rack.toUpperCase(),
+        level: c.level,
+        position: c.position,
+        code: c.code,
+      })),
+    });
+  }
+
+  return { created: toCreate.length, skipped: candidates.length - toCreate.length };
 }
