@@ -6,6 +6,7 @@ import { getRequestIp } from "@/server/http/ip";
 import { isLoginRateLimited, recordLoginAttempt } from "@/server/auth/rateLimit";
 import { sendPasswordResetEmail } from "@/server/notifications/email";
 import { writeAuditLog } from "@/server/audit/log";
+import { getAppUrl } from "@/server/config/appUrl";
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     },
   });
 
-  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const appUrl = getAppUrl();
   const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
   await sendPasswordResetEmail(user.email, resetUrl);
 

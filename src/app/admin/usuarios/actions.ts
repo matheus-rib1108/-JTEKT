@@ -10,6 +10,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { writeAuditLog } from "@/server/audit/log";
 import { getRequestIp } from "@/server/http/ip";
 import { sendPasswordResetEmail } from "@/server/notifications/email";
+import { getAppUrl } from "@/server/config/appUrl";
 
 const inviteSchema = z.object({
   name: z.string().trim().min(2).max(150),
@@ -71,7 +72,7 @@ export async function inviteEmployee(formData: FormData): Promise<ActionResult> 
     },
   });
 
-  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const appUrl = getAppUrl();
   await sendPasswordResetEmail(newUser.email, `${appUrl}/reset-password?token=${rawToken}`);
 
   const headerList = await headers();

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function MarketingFooter() {
   return (
     <footer className="border-t border-border-subtle bg-brand-950">
@@ -13,8 +15,14 @@ export function MarketingFooter() {
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
             <FooterColumn title="Plataforma" items={["Estoque", "Armazém", "Ofertas B2B", "Cotações"]} />
-            <FooterColumn title="Segurança" items={["RBAC", "Auditoria", "LGPD"]} />
-            <FooterColumn title="Empresa" items={["Sobre", "Contato"]} />
+            <FooterColumn title="Segurança" items={["RBAC", "Auditoria"]} />
+            <FooterColumn
+              title="Legal"
+              items={[
+                { label: "Termos de Uso", href: "/termos" },
+                { label: "Política de Privacidade", href: "/privacidade" },
+              ]}
+            />
           </div>
         </div>
         <p className="mt-8 border-t border-white/10 pt-6 text-white/40">
@@ -25,14 +33,23 @@ export function MarketingFooter() {
   );
 }
 
-function FooterColumn({ title, items }: { title: string; items: string[] }) {
+type FooterItem = string | { label: string; href: string };
+
+function FooterColumn({ title, items }: { title: string; items: FooterItem[] }) {
   return (
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">{title}</p>
       <ul className="mt-2 space-y-1.5">
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
+        {items.map((item) => {
+          if (typeof item === "string") return <li key={item}>{item}</li>;
+          return (
+            <li key={item.href}>
+              <Link href={item.href} className="hover:text-white">
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

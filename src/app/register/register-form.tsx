@@ -155,6 +155,18 @@ export function RegisterForm() {
         </div>
       </fieldset>
 
+      <p className="text-[12px] text-text-faint">
+        Ao solicitar o cadastro, você concorda com os{" "}
+        <a href="/termos" target="_blank" className="text-brand-700 hover:underline">
+          Termos de Uso
+        </a>{" "}
+        e a{" "}
+        <a href="/privacidade" target="_blank" className="text-brand-700 hover:underline">
+          Política de Privacidade
+        </a>
+        .
+      </p>
+
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Enviando…" : "Solicitar cadastro"}
       </Button>
