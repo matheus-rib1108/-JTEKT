@@ -15,20 +15,21 @@ export default function HomePage() {
             <div>
               <Badge tone="brand">Plataforma B2B para operações industriais</Badge>
               <h1 className="mt-4 text-[32px] font-semibold leading-tight text-white sm:text-[38px]">
-                Transforme estoque parado em espaço, giro e receita — sem destruir a margem.
+                Estoque, armazém e vendas entre empresas em um sistema. Nenhuma venda sai abaixo
+                da margem que você configurou.
               </h1>
               <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-white/70">
-                O StockFlow B2B combina controle de estoque, endereçamento de armazém, análise
-                ABC/XYZ e um marketplace B2B privado para que fabricantes e distribuidores
-                identifiquem excedentes, liberem posições físicas e vendam de forma inteligente
-                para outras empresas.
+                O StockFlow B2B calcula qual peça é excedente, onde ela está fisicamente alocada
+                e a que preço pode ser vendida a outra empresa. A classificação ABC/XYZ, o piso
+                de preço e a reserva de estoque rodam no servidor: a interface mostra o número,
+                não decide por trás dele.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link href="/register">
                   <Button variant="secondary">Cadastrar minha empresa</Button>
                 </Link>
                 <Link href="/login">
-                  <Button variant="outline" className="border-white/20 text-white hover:bg-white/5">
+                  <Button variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white/5">
                     Já tenho acesso
                   </Button>
                 </Link>
@@ -36,7 +37,7 @@ export default function HomePage() {
             </div>
             <div className="rounded-[var(--radius-md)] border border-white/10 bg-white/[0.03] p-5">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">
-                Smart Stock Engine — exemplo ilustrativo
+                Smart Stock Engine · exemplo ilustrativo
               </p>
               <div className="mt-3 space-y-2.5 font-tabular text-[13px] text-white/80">
                 <Row label="Estoque disponível" value="420 un." />
@@ -46,8 +47,8 @@ export default function HomePage() {
                 <Row label="Prioridade de redução" value="92 / 100" highlight />
               </div>
               <p className="mt-4 text-[12px] leading-relaxed text-white/50">
-                Ilustração do cálculo do motor de estoque — os números reais aparecem apenas após
-                o cadastro de produtos e movimentações (Fase 2 em diante).
+                Cálculo do motor de estoque com dados de exemplo. Os números reais só aparecem
+                depois que produtos e movimentações são cadastrados.
               </p>
             </div>
           </div>
@@ -55,45 +56,54 @@ export default function HomePage() {
 
         <section id="plataforma" className="mx-auto max-w-6xl px-4 py-16">
           <h2 className="text-[13px] font-semibold uppercase tracking-wide text-brand-700">
-            Uma plataforma, cinco motores
+            Dois motores decidem o preço e o giro. O resto do sistema executa em torno deles.
           </h2>
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard
+
+          <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            <CoreEngineCard
               title="Smart Stock Engine"
-              description="Classificação ABC/XYZ e índice de prioridade de redução (0–100) calculados a partir de giro, cobertura, espaço ocupado e criticidade real."
+              stat="0–100"
+              statLabel="índice de prioridade de redução"
+              description="Cruza giro, cobertura de estoque, espaço ocupado no armazém e valor imobilizado para classificar cada produto em ABC (impacto financeiro) e XYZ (previsibilidade de demanda). Sem histórico suficiente, o campo fica em branco — o sistema não estima."
             />
-            <FeatureCard
+            <CoreEngineCard
               title="Motor de preços"
-              description="Margem mínima, preço mínimo e descontos progressivos por quantidade — nunca aprova automaticamente uma venda abaixo do piso configurado."
-            />
-            <FeatureCard
-              title="Ofertas de estoque"
-              description="Transforma excedente identificado em condição comercial, com meta de redução e acompanhamento de resultado."
-            />
-            <FeatureCard
-              title="Armazém e endereçamento"
-              description="Galpão · Corredor · Rack · Nível · Posição — com indicador de posições fora do padrão e simulador de capacidade."
-            />
-            <FeatureCard
-              title="Marketplace B2B privado"
-              description="Catálogo técnico, cotação, carrinho com desconto por volume e acompanhamento de pedido até a expedição."
-            />
-            <FeatureCard
-              title="Auditoria e RBAC"
-              description="Permissões por função verificadas no servidor e trilha de auditoria para toda ação sensível — preço, estoque, aprovação, acesso."
+              stat="R$ mín."
+              statLabel="piso configurado por produto"
+              description="Margem mínima, preço mínimo e desconto progressivo por faixa de quantidade. Uma proposta de cotação abaixo do piso é bloqueada antes de chegar ao cliente — inclusive para quem tem permissão de aprovar preço."
             />
           </div>
+
+          <ul className="mt-8 grid gap-x-8 gap-y-3 border-t border-border-subtle pt-6 sm:grid-cols-2 lg:grid-cols-4">
+            <CapabilityItem
+              title="Ofertas de excedente"
+              description="Vincula o produto classificado como excedente a uma condição comercial e uma meta de redução."
+            />
+            <CapabilityItem
+              title="Armazém e endereçamento"
+              description="Galpão, corredor, rack, nível e posição. Posições fora do padrão ficam marcadas para correção."
+            />
+            <CapabilityItem
+              title="Cotação e pedido"
+              description="Do carrinho com desconto por volume até a separação, embalagem e expedição do pedido confirmado."
+            />
+            <CapabilityItem
+              title="Permissões e auditoria"
+              description="Cada ação sensível — preço, estoque, aprovação de acesso — é checada no servidor e fica registrada."
+            />
+          </ul>
         </section>
 
         <section id="seguranca" className="border-t border-border-subtle bg-surface-muted/60">
           <div className="mx-auto max-w-6xl px-4 py-16">
             <h2 className="text-[13px] font-semibold uppercase tracking-wide text-brand-700">
-              Construído como software de operação, não como vitrine
+              Autenticação e acesso
             </h2>
             <p className="mt-3 max-w-2xl text-[14px] text-text-muted">
-              Sessões protegidas, senhas com hash seguro, proteção contra força bruta, validação
-              server-side e cadastro de empresas com fluxo de aprovação — cada módulo comercial
-              nasce sobre essa base.
+              Sessões com token opaco (não JWT), senha com hash e bloqueio por tentativas, e
+              cadastro de empresa cliente com fluxo de aprovação: um administrador revisa, um
+              segundo, diferente do primeiro, aprova. Autenticação em duas etapas por app
+              autenticador (TOTP) está disponível para qualquer conta interna.
             </p>
           </div>
         </section>
@@ -113,11 +123,34 @@ function Row({ label, value, highlight }: { label: string; value: string; highli
   );
 }
 
-function FeatureCard({ title, description }: { title: string; description: string }) {
+function CoreEngineCard({
+  title,
+  stat,
+  statLabel,
+  description,
+}: {
+  title: string;
+  stat: string;
+  statLabel: string;
+  description: string;
+}) {
   return (
-    <div className="rounded-[var(--radius-md)] border border-border-subtle bg-surface p-5">
-      <h3 className="text-[14px] font-semibold text-foreground">{title}</h3>
-      <p className="mt-2 text-[13px] leading-relaxed text-text-muted">{description}</p>
+    <div className="rounded-[var(--radius-md)] border border-border-strong bg-surface p-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
+        <span className="font-tabular text-[13px] text-accent-600">{stat}</span>
+      </div>
+      <p className="text-[11px] uppercase tracking-wide text-text-faint">{statLabel}</p>
+      <p className="mt-3 text-[13px] leading-relaxed text-text-muted">{description}</p>
     </div>
+  );
+}
+
+function CapabilityItem({ title, description }: { title: string; description: string }) {
+  return (
+    <li>
+      <p className="text-[13px] font-semibold text-foreground">{title}</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-text-muted">{description}</p>
+    </li>
   );
 }

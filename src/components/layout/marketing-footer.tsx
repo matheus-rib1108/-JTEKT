@@ -8,7 +8,7 @@ export function MarketingFooter() {
               StockFlow<span className="text-accent-500">B2B</span>
             </p>
             <p className="mt-1 max-w-sm">
-              Transforme estoque em espaço, eficiência e resultado.
+              Estoque, armazém e vendas B2B em um único sistema operacional.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
@@ -18,8 +18,7 @@ export function MarketingFooter() {
           </div>
         </div>
         <p className="mt-8 border-t border-white/10 pt-6 text-white/40">
-          © {new Date().getFullYear()} StockFlow B2B. Dados de demonstração — plataforma em
-          desenvolvimento por fases.
+          © {new Date().getFullYear()} StockFlow B2B. Esta instalação usa dados de demonstração.
         </p>
       </div>
     </footer>
