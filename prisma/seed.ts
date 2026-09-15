@@ -8,6 +8,8 @@ const prisma = new PrismaClient();
 const DEFAULT_TENANT_SLUG = process.env.DEFAULT_TENANT_SLUG ?? "jtekt";
 const SEED_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@jtekt.demo";
 const SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "TrocarSenha#2026";
+const SEED_COMERCIAL_EMAIL = process.env.SEED_COMERCIAL_EMAIL ?? "comercial@jtekt.demo";
+const SEED_COMERCIAL_PASSWORD = process.env.SEED_COMERCIAL_PASSWORD ?? "TrocarSenha#2026b";
 
 async function main() {
   console.log("Seeding permissions...");
@@ -77,6 +79,32 @@ async function main() {
     console.log(`Demo credentials -> ${SEED_ADMIN_EMAIL} / ${SEED_ADMIN_PASSWORD}`);
   } else {
     console.log("Demo Super Admin already exists, skipping.");
+  }
+
+  // Second internal admin — needed for real two-person governance flows
+  // (§12/§26: reviewing and approving a client company registration always
+  // requires two *different* administrators; a single seeded admin can't
+  // demonstrate that on its own).
+  const comercialRole = await prisma.role.findUniqueOrThrow({ where: { key: "COMERCIAL" } });
+  const comercialUser = await prisma.user.findFirst({
+    where: { tenantId: tenant.id, email: SEED_COMERCIAL_EMAIL },
+  });
+  if (!comercialUser) {
+    console.log(`Creating demo Comercial admin: ${SEED_COMERCIAL_EMAIL}`);
+    await prisma.user.create({
+      data: {
+        tenantId: tenant.id,
+        userType: "INTERNAL",
+        name: "Comercial StockFlow",
+        email: SEED_COMERCIAL_EMAIL,
+        passwordHash: await bcrypt.hash(SEED_COMERCIAL_PASSWORD, 12),
+        roleId: comercialRole.id,
+        status: "ACTIVE",
+      },
+    });
+    console.log(`Demo credentials -> ${SEED_COMERCIAL_EMAIL} / ${SEED_COMERCIAL_PASSWORD}`);
+  } else {
+    console.log("Demo Comercial admin already exists, skipping.");
   }
 
   await seedDemoCatalog(tenant.id, adminUser.id);

@@ -154,8 +154,34 @@ função.
       "Rate limiter distribuído" fica como débito técnico conhecido — exige
       um contador compartilhado (Redis) não provisionado neste ambiente; já
       listado abaixo, não fabricado.
-- [ ] **Fase 13 — Testes.** Cobertura de integração/E2E dos fluxos
-      comerciais completos.
+- [x] **Fase 13 — Testes.** Cobertura de integração/E2E dos fluxos
+      comerciais completos, real: `@playwright/test` (`e2e/`, `npm run
+      test:e2e`) roda contra um `next dev` real e o Postgres real, sem
+      mocks — substitui os scripts descartáveis de smoke test usados nas
+      fases anteriores por uma suíte permanente e repetível. Três
+      cenários: `commercial-flow.spec.ts` (cadastro → aprovação em duas
+      pessoas → carrinho → pedido → separação → embalagem → despacho →
+      entrega, com asserção nos movimentos de estoque de verdade, não só no
+      texto da tela — a mesma checagem que originalmente pegou o bug do
+      `markShipped` na Fase 9); `quotes.spec.ts` (cotação solicitada →
+      proposta acima do piso → aceite → cancelamento, liberando a reserva
+      pelo fluxo real); `mfa-login.spec.ts` (ativar TOTP, login exigindo o
+      código, desativar). Um segundo administrador demo (`comercial@jtekt.demo`,
+      role COMERCIAL) foi adicionado ao `prisma/seed.ts` — sem ele não havia
+      como demonstrar de verdade a aprovação em duas pessoas da Fase 12.
+      Também adicionados: testes unitários que faltavam para lógica pura
+      já existente (`mfaCrypto`, esquemas de validação de MFA, `toCsv`).
+      Descoberto e corrigido nesta fase: a limpeza de dados de teste
+      apagava a empresa cliente diretamente quando um cenário falhava no
+      meio do fluxo — como `CustomerCompany → Order` é `onDelete: Cascade`,
+      isso apagava o pedido junto e deixava a reserva de estoque órfã (a
+      mesma classe de bug já documentada abaixo em "Débitos técnicos
+      conhecidos"); a limpeza agora sempre libera a reserva antes de
+      apagar. Nota honesta: `commercial-flow.spec.ts` despacha um pedido de
+      verdade a cada execução, então `quantityOnHand` do produto usado cai
+      de verdade a cada rodada — esperado (é o ponto do teste), mas uma
+      suíte de CI que rode isso com frequência precisa re-semear o banco
+      entre execuções, não compartilhar um banco que só diminui.
 - [ ] **Fase 14 — Performance.**
 - [ ] **Fase 15 — Deploy.**
 
