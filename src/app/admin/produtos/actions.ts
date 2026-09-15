@@ -20,7 +20,7 @@ import { writeAuditLog } from "@/server/audit/log";
 import { getRequestIp } from "@/server/http/ip";
 import { registerMovement, updateCommercialAvailability, InventoryError } from "@/server/inventory/engine";
 import { allocateProduct, WarehouseError } from "@/server/warehouse/engine";
-import { saveProductUpload, deleteLocalUpload, UploadError } from "@/server/uploads/storage";
+import { saveProductUpload, deleteProductUpload, UploadError } from "@/server/uploads/storage";
 import type { Prisma } from "@prisma/client";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -343,7 +343,7 @@ export async function removeProductImage(formData: FormData): Promise<ActionResu
   if (!image) return { ok: false, error: "Imagem não encontrada." };
 
   await prisma.productImage.delete({ where: { id: image.id } });
-  await deleteLocalUpload(image.url);
+  await deleteProductUpload(image.url);
 
   await writeAuditLog({
     tenantId: auth.user.tenantId,
@@ -424,7 +424,7 @@ export async function removeProductDocument(formData: FormData): Promise<ActionR
   if (!document) return { ok: false, error: "Documento não encontrado." };
 
   await prisma.productDocument.delete({ where: { id: document.id } });
-  await deleteLocalUpload(document.url);
+  await deleteProductUpload(document.url);
 
   await writeAuditLog({
     tenantId: auth.user.tenantId,

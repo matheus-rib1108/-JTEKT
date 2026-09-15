@@ -8,8 +8,16 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled connection for the app's own queries (through PgBouncer/similar
+  // on a serverless deploy — Vercel functions open far more short-lived
+  // connections than a single long-running server would). directUrl is a
+  // second, non-pooled connection used only by `prisma migrate`, which
+  // needs session-level behavior a transaction pooler doesn't provide. In
+  // local dev, both point at the same plain Postgres instance — see
+  // docs/DEPLOY.md.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------

@@ -2,17 +2,17 @@ import "server-only";
 import { mkdir, writeFile, unlink } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { put, del } from "@vercel/blob";
 
 export class UploadError extends Error {}
 
 /**
- * Local-disk file storage under `public/uploads/`. No object-storage
- * integration is configured for this installation — flagged here rather
- * than pretended away (§49 "não inventar integração"). Fine for a
- * single-instance/local deployment; a production multi-instance rollout
- * needs this swapped for S3/Blob (tracked in docs/ROADMAP.md), since
- * files written to disk here don't survive a redeploy or get shared
- * across instances.
+ * File storage for product images/documents. Vercel Blob when
+ * BLOB_READ_WRITE_TOKEN is configured (§27/§49 — real integration, not
+ * pretended); falls back to local disk under `public/uploads/` otherwise,
+ * which keeps local development working without needing a Blob store, but
+ * is NOT suitable for a serverless deploy (Vercel functions don't share or
+ * persist a writable filesystem across invocations) — see docs/DEPLOY.md.
  */
 
 export type UploadKind = "image" | "document";
@@ -29,6 +29,10 @@ const MAX_BYTES: Record<UploadKind, number> = {
 
 export interface SavedUpload {
   url: string;
+}
+
+function usingBlobStorage(): boolean {
+  return !!process.env.BLOB_READ_WRITE_TOKEN;
 }
 
 /**
@@ -61,14 +65,20 @@ export async function saveProductUpload(
     throw new UploadError(`Arquivo maior que o limite permitido (${Math.round(maxBytes / 1024 / 1024)}MB).`);
   }
 
+  const filename = `${crypto.randomBytes(16).toString("hex")}.${extension}`;
+  const pathname = `${tenantId}/products/${productId}/${filename}`;
+
+  if (usingBlobStorage()) {
+    const blob = await put(pathname, file, { access: "public", addRandomSuffix: false });
+    return { url: blob.url };
+  }
+
   // Path kept statically scoped under public/uploads (literal segments, not
   // built from a joined/split string) so Next's build tracer can see the
   // write never escapes that subfolder — otherwise it traces and bundles
   // the entire project as a false-positive dependency of this file write.
   const absoluteDir = path.join(process.cwd(), "public", "uploads", tenantId, "products", productId);
   await mkdir(absoluteDir, { recursive: true });
-
-  const filename = `${crypto.randomBytes(16).toString("hex")}.${extension}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(path.join(absoluteDir, filename), buffer);
 
@@ -78,7 +88,11 @@ export async function saveProductUpload(
 /** Best-effort delete — a missing file (already gone, or never existed
  * because the record was created with a pasted external URL) is not an
  * error worth surfacing to the caller. */
-export async function deleteLocalUpload(publicUrl: string): Promise<void> {
+export async function deleteProductUpload(publicUrl: string): Promise<void> {
+  if (usingBlobStorage() && publicUrl.includes(".public.blob.vercel-storage.com")) {
+    await del(publicUrl).catch(() => {});
+    return;
+  }
   if (!publicUrl.startsWith("/uploads/")) return; // external URL, nothing to delete
   const absolutePath = path.join(process.cwd(), "public", publicUrl);
   await unlink(absolutePath).catch(() => {});

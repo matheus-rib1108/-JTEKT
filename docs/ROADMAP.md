@@ -219,7 +219,33 @@ função.
       `markShipped` — são sensíveis a corretude do livro de estoque e só
       importariam de verdade em pedidos com dezenas de itens, o que não é
       o perfil atual de uso.
-- [ ] **Fase 15 — Deploy.**
+- [x] **Fase 15 — Deploy.** Alvo escolhido pelo usuário: Vercel. Guia
+      completo em `docs/DEPLOY.md` (banco Postgres, Blob Store, variáveis
+      de ambiente, primeiro deploy, pós-deploy) — os passos que dependem da
+      conta Vercel do usuário (criar projeto, provisionar Postgres/Blob)
+      não podem ser feitos por esta sessão, então o trabalho aqui é deixar
+      o repositório pronto e documentar exatamente o que falta clicar.
+      Mudanças reais no código:
+      - Upload de imagens/documentos de produto (`src/server/uploads/storage.ts`)
+        migrado para Vercel Blob quando `BLOB_READ_WRITE_TOKEN` está
+        configurado — escolha do usuário depois de eu apontar que o disco
+        local (usado desde a Fase 5) não sobrevive a uma função serverless.
+        Sem o token, cai para o disco local automaticamente (dev local
+        continua funcionando sem precisar de um Blob Store); testado
+        manualmente nos dois casos.
+      - `prisma/schema.prisma`: `directUrl` adicionado ao datasource — em
+        produção, `DATABASE_URL` é a conexão via pool (PgBouncer/Neon/etc,
+        necessária porque funções serverless abrem muito mais conexões que
+        um servidor único) e `DIRECT_URL` é a conexão direta que só
+        `prisma migrate` usa. Localmente as duas apontam para o mesmo
+        Postgres.
+      - `postinstall: prisma generate` adicionado ao `package.json` — não
+        depender do preset da Vercel rodar isso implicitamente.
+      - `.env.example` atualizado com `DIRECT_URL` e `BLOB_READ_WRITE_TOKEN`.
+      Migrations em produção são deliberadamente um passo manual
+      (`prisma migrate deploy`, documentado no guia) e não parte do comando
+      de build — rodar migration automaticamente a cada build é arriscado
+      sob deploys concorrentes.
 
 ## Débitos técnicos conhecidos (declarados, não escondidos)
 
