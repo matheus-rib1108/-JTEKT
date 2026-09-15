@@ -103,10 +103,13 @@ export function AdminShellChrome({
             <h1 className="text-[14px] font-medium text-foreground">{currentPageLabel}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
+            <Link
+              href="/admin/conta"
+              className="hidden text-right sm:block hover:opacity-80"
+            >
               <p className="text-[13px] font-medium text-foreground">{user.name}</p>
               <p className="text-[11px] text-text-muted">{user.roleKey}</p>
-            </div>
+            </Link>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               Sair
             </Button>

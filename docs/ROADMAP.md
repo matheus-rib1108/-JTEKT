@@ -134,8 +134,26 @@ função.
       número simulado, e um relatório sem dados (ex.: nenhum pedido ainda)
       baixa honestamente só o cabeçalho, não uma linha de exemplo
       inventada.
-- [ ] **Fase 12 — Segurança + auditoria avançada.** MFA/2FA, aprovação
-      multi-etapa, rate limiter distribuído.
+- [x] **Fase 12 — Segurança + auditoria avançada.** MFA/2FA real via TOTP
+      (RFC 6238, `otpauth` + `qrcode`): segredo gerado no servidor, QR code
+      e chave manual exibidos uma única vez durante o cadastro, e só é
+      gravado no banco (criptografado em repouso com AES-256-GCM, chave
+      derivada de `APP_SECRET` via scrypt) depois que o usuário prova posse
+      digitando um código válido — nada é persistido antes disso. Login
+      passa a ter duas etapas quando MFA está ativo: a senha correta gera
+      um `MfaChallenge` de uso único (5 min) em vez de sessão, e só a
+      confirmação do código de 6 dígitos cria a sessão de verdade; tentativas
+      de código reaproveitam o mesmo limitador de força bruta por
+      identificador (`LoginAttempt`) já usado no login por senha.
+      Aprovação em duas pessoas para ativação de empresa cliente (§12/§26):
+      um administrador revisa (`reviewedById`), e só um administrador
+      *diferente* pode aprovar — a mesma pessoa nunca pode fazer as duas
+      etapas sozinha, verificado no servidor (não só escondendo o botão na
+      tela: testado diretamente reproduzindo a chamada da Server Action com
+      a sessão de quem revisou, e o servidor recusa mesmo assim).
+      "Rate limiter distribuído" fica como débito técnico conhecido — exige
+      um contador compartilhado (Redis) não provisionado neste ambiente; já
+      listado abaixo, não fabricado.
 - [ ] **Fase 13 — Testes.** Cobertura de integração/E2E dos fluxos
       comerciais completos.
 - [ ] **Fase 14 — Performance.**

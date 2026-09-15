@@ -4,6 +4,7 @@ import { prisma } from "@/server/db/client";
 import { loginSchema } from "@/lib/validation/auth";
 import { verifyPassword } from "@/server/auth/password";
 import { attachSessionCookies, createSession } from "@/server/auth/session";
+import { createMfaChallenge } from "@/server/auth/mfaChallenge";
 import {
   clearFailedLogins,
   isAccountLocked,
@@ -72,6 +73,18 @@ export async function POST(request: Request) {
 
   await clearFailedLogins(user.id);
   await recordLoginAttempt(email, true, ip);
+
+  // Password step passed — if MFA is enabled, hand back a short-lived
+  // challenge token instead of a session. No session cookie is set until
+  // /api/auth/mfa/verify confirms the TOTP code.
+  if (user.mfaEnabled) {
+    const { rawToken, expiresAt } = await createMfaChallenge(user.id);
+    return NextResponse.json({
+      mfaRequired: true,
+      challengeToken: rawToken,
+      expiresAt: expiresAt.toISOString(),
+    });
+  }
 
   const { rawToken, expiresAt } = await createSession({
     userId: user.id,

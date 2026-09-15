@@ -71,6 +71,12 @@ model CustomerCompany {
   country           String  @default("BR")
 
   status       CustomerCompanyStatus @default(PENDING_VALIDATION)
+  /// First step of the two-person approval (§12/§26): one admin marks the
+  /// registration as reviewed; a *different* admin must then approve it
+  /// (src/app/admin/clientes/actions.ts enforces reviewedById !==
+  /// the approving actor) — the same admin can never do both steps alone.
+  reviewedAt   DateTime?
+  reviewedById String?
   approvedAt   DateTime?
   approvedById String?
 
@@ -139,6 +145,7 @@ model User {
 
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  mfaChallenges       MfaChallenge[]
   auditLogsAsActor    AuditLog[]           @relation("AuditActor")
   inventoryMovements  InventoryMovement[]
   ordersCreated       Order[]              @relation("OrderCreatedBy")
@@ -227,6 +234,26 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+/// Short-lived pending-login state between "password verified" and
+/// "session created" for a user with MFA enabled (§27). Deliberately not
+/// a JWT: the login route returns only this opaque token, and
+/// /api/auth/mfa/verify exchanges it (plus a valid TOTP code) for a real
+/// Session the same way the DB-backed session model works everywhere else
+/// in this app — no signed/self-contained token ever grants access on its
+/// own.
+model MfaChallenge {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("mfa_challenges")
 }
 
 /// Tracks login attempts (by email and by IP) to power rate limiting and

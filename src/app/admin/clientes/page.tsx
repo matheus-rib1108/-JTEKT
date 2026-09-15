@@ -75,10 +75,18 @@ export default async function ClientesPage() {
                   </td>
                   <td className="px-4 py-2.5">
                     <Badge tone={STATUS_TONE[company.status]}>{STATUS_LABEL[company.status]}</Badge>
+                    {company.status === "PENDING_VALIDATION" && company.reviewedById ? (
+                      <p className="mt-0.5 text-[11px] text-text-muted">Revisado, aguardando 2ª aprovação</p>
+                    ) : null}
                   </td>
                   {canManage ? (
                     <td className="px-4 py-2.5">
-                      <CompanyActions companyId={company.id} status={company.status} />
+                      <CompanyActions
+                        companyId={company.id}
+                        status={company.status}
+                        reviewedById={company.reviewedById}
+                        currentUserId={auth.user.id}
+                      />
                     </td>
                   ) : null}
                 </tr>

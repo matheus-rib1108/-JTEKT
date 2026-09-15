@@ -15,6 +15,44 @@ async function getIpFromHeaders(): Promise<string | null> {
   return getRequestIp(new Request("http://localhost", { headers: headerList }));
 }
 
+/** First step of the two-person approval (§12/§26): marks the registration
+ * as reviewed by the acting admin. approveCustomerCompany then requires a
+ * *different* admin to take the second step. */
+export async function reviewCustomerCompany(companyId: string): Promise<ActionResult> {
+  const auth = await requirePermission(PERMISSIONS.CUSTOMERS_MANAGE);
+  if (!auth.user) return { ok: false, error: "Não autorizado." };
+
+  const company = await prisma.customerCompany.findFirst({
+    where: { id: companyId, tenantId: auth.user.tenantId },
+  });
+  if (!company) return { ok: false, error: "Empresa não encontrada." };
+  if (company.status !== "PENDING_VALIDATION") {
+    return { ok: false, error: "Esta empresa não está pendente de validação." };
+  }
+
+  await prisma.customerCompany.update({
+    where: { id: companyId },
+    data: { reviewedAt: new Date(), reviewedById: auth.user.id },
+  });
+
+  await writeAuditLog({
+    tenantId: auth.user.tenantId,
+    actorUserId: auth.user.id,
+    action: "customer_company.review",
+    entityType: "CustomerCompany",
+    entityId: companyId,
+    ipAddress: await getIpFromHeaders(),
+    beforeData: { reviewedById: company.reviewedById },
+    afterData: { reviewedById: auth.user.id },
+  });
+
+  revalidatePath("/admin/clientes");
+  return { ok: true };
+}
+
+/** Second step of the two-person approval — requires a prior review by a
+ * *different* admin (enforced here, not just in the UI: §12/§26 requires
+ * this to hold even if a client bypasses the disabled button). */
 export async function approveCustomerCompany(companyId: string): Promise<ActionResult> {
   const auth = await requirePermission(PERMISSIONS.CUSTOMERS_MANAGE);
   if (!auth.user) return { ok: false, error: "Não autorizado." };
@@ -23,6 +61,16 @@ export async function approveCustomerCompany(companyId: string): Promise<ActionR
     where: { id: companyId, tenantId: auth.user.tenantId },
   });
   if (!company) return { ok: false, error: "Empresa não encontrada." };
+
+  if (!company.reviewedById) {
+    return { ok: false, error: "É preciso revisar o cadastro antes de aprová-lo." };
+  }
+  if (company.reviewedById === auth.user.id) {
+    return {
+      ok: false,
+      error: "Quem revisou o cadastro não pode aprová-lo — peça para outro administrador aprovar.",
+    };
+  }
 
   await prisma.customerCompany.update({
     where: { id: companyId },
