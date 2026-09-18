@@ -10,6 +10,9 @@ const SEED_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@jtekt.demo";
 const SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "TrocarSenha#2026";
 const SEED_COMERCIAL_EMAIL = process.env.SEED_COMERCIAL_EMAIL ?? "comercial@jtekt.demo";
 const SEED_COMERCIAL_PASSWORD = process.env.SEED_COMERCIAL_PASSWORD ?? "TrocarSenha#2026b";
+const SEED_CLIENT_CNPJ = process.env.SEED_CLIENT_CNPJ ?? "11222333000181";
+const SEED_CLIENT_EMAIL = process.env.SEED_CLIENT_EMAIL ?? "cliente@industriaexemplo.demo";
+const SEED_CLIENT_PASSWORD = process.env.SEED_CLIENT_PASSWORD ?? "TrocarSenha#2026c";
 
 async function main() {
   console.log("Seeding permissions...");
@@ -86,12 +89,12 @@ async function main() {
   // requires two *different* administrators; a single seeded admin can't
   // demonstrate that on its own).
   const comercialRole = await prisma.role.findUniqueOrThrow({ where: { key: "COMERCIAL" } });
-  const comercialUser = await prisma.user.findFirst({
+  let comercialUser = await prisma.user.findFirst({
     where: { tenantId: tenant.id, email: SEED_COMERCIAL_EMAIL },
   });
   if (!comercialUser) {
     console.log(`Creating demo Comercial admin: ${SEED_COMERCIAL_EMAIL}`);
-    await prisma.user.create({
+    comercialUser = await prisma.user.create({
       data: {
         tenantId: tenant.id,
         userType: "INTERNAL",
@@ -110,8 +113,64 @@ async function main() {
   await seedDemoCatalog(tenant.id, adminUser.id);
   await seedDemoWarehouse(tenant.id, adminUser.id);
   await seedDemoPricing(tenant.id, adminUser.id);
+  await seedDemoClient(tenant.id, adminUser.id, comercialUser.id);
 
   console.log("Seed completed.");
+}
+
+/**
+ * Demo client company + portal user (§26 two-person approval, §7 portal
+ * access). Reviewed and approved by the two *different* seeded internal
+ * admins above, mirroring the real approval flow's constraint — never by
+ * the same admin twice.
+ */
+async function seedDemoClient(tenantId: string, reviewedById: string, approvedById: string) {
+  console.log("Seeding demo client company and portal user...");
+
+  const now = new Date();
+  const company = await prisma.customerCompany.upsert({
+    where: { tenantId_cnpj: { tenantId, cnpj: SEED_CLIENT_CNPJ } },
+    update: {},
+    create: {
+      tenantId,
+      legalName: "Indústria Exemplo Ltda",
+      tradeName: "Indústria Exemplo",
+      cnpj: SEED_CLIENT_CNPJ,
+      email: SEED_CLIENT_EMAIL,
+      phone: "(11) 4000-0000",
+      city: "São Paulo",
+      state: "SP",
+      status: "ACTIVE",
+      reviewedAt: now,
+      reviewedById,
+      approvedAt: now,
+      approvedById,
+    },
+  });
+
+  const clientRole = await prisma.role.findUniqueOrThrow({ where: { key: "CLIENT_ADMIN" } });
+  const existingClientUser = await prisma.user.findFirst({
+    where: { tenantId, email: SEED_CLIENT_EMAIL },
+  });
+
+  if (!existingClientUser) {
+    console.log(`Creating demo client user: ${SEED_CLIENT_EMAIL}`);
+    await prisma.user.create({
+      data: {
+        tenantId,
+        userType: "CLIENT",
+        customerCompanyId: company.id,
+        name: "Cliente Demonstração",
+        email: SEED_CLIENT_EMAIL,
+        passwordHash: await bcrypt.hash(SEED_CLIENT_PASSWORD, 12),
+        roleId: clientRole.id,
+        status: "ACTIVE",
+      },
+    });
+    console.log(`Demo credentials -> ${SEED_CLIENT_EMAIL} / ${SEED_CLIENT_PASSWORD}`);
+  } else {
+    console.log("Demo client user already exists, skipping.");
+  }
 }
 
 /**
